@@ -1,0 +1,36 @@
+{
+  "name": "api_server",
+  "apiVersion": "v1",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "start": "node dist/src/index.js",
+    "dev": "concurrently \"npx tsc --watch\" \"nodemon -q dist/src/index.js\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.1",
+    "express": "^4.17.1",
+    "express-async-errors": "^3.1.1",
+    "express-basic-auth": "^1.2.1",
+    "express-jwt": "^7.7.5",
+    "http-status": "^1.5.2",
+    "jsonwebtoken": "^8.5.1",
+    "pg": "^8.7.3",
+    "sequelize": "^6.19.1",
+    "swagger-jsdoc": "^6.2.1",
+    "swagger-ui-express": "^4.4.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.13",
+    "@types/node": "^17.0.34",
+    "concurrently": "^7.2.0",
+    "nodemon": "^2.0.16",
+    "typescript": "^4.6.4"
+  }
+}

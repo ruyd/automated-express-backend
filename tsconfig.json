@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": false,
+    "forceConsistentCasingInFileNames": true,
+    "target": "es6",
+    "module": "commonjs",
+    "outDir": "dist",
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "lib": [
+      "es6",
+      "dom",
+      "es2019.array"
+    ],
+    "esModuleInterop": true,
+  },
+  "include": [
+    "./src/**/*.ts",
+    ".eslintrc.js"
+  ],
+  "exclude": [
+    "dist",
+    "build",
+    "coverage",
+    "node_modules"
+  ]
+}
