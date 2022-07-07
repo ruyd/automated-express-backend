@@ -11,9 +11,6 @@ export function tokenCheck(_req, _res, next) {
   if (!config?.tokenSecret) {
     return next()
   }
-
-  //_req.auth = jwt.verify(_req.headers.authorization, config.tokenSecret)
-
   return jwtVerify(_req, _res, next)
 }
 
