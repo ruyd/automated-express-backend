@@ -2,7 +2,7 @@
 
 Automated Express Backend
 
-Modern template for Express based backends and microservices
+Modern template for Express backends and microservices
 
 Automatic API generation and Swagger admin portal based on sequelize models
 
