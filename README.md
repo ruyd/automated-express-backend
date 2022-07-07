@@ -1,6 +1,4 @@
-# Node Starter Template
-
-Automated Express Backend
+# Automated Express Backend
 
 Modern template for Express backends and microservices
 
