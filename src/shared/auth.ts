@@ -32,7 +32,7 @@ export interface oAuthRegistered extends oAuthError {
   email_verified: boolean
 }
 
-type ReqWithAuth = express.Request & { auth: AppAccessToken }
+export type ReqWithAuth = express.Request & { auth: AppAccessToken }
 
 const jwkClient = jwksRsa({
   jwksUri: `${config.auth?.baseUrl}/.well-known/jwks.json`,

@@ -1,5 +1,6 @@
 import express from 'express'
 import { Model, ModelStatic, Order } from 'sequelize/types'
+import { ReqWithAuth } from '../../shared/auth'
 import { createOrUpdate, deleteIfExists, getIfExists, list } from './controller'
 
 export interface AutoApiConfig {
@@ -9,7 +10,7 @@ export interface AutoApiConfig {
 
 export const autoApiConfig: AutoApiConfig = {
   userIdColumn: 'userId',
-  getAuthUserId: (req) => (req as any).auth?.userId,
+  getAuthUserId: (req) => (req as ReqWithAuth).auth?.userId,
 }
 
 /**
