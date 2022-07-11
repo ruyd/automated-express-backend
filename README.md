@@ -1,4 +1,4 @@
-# Automated Express Backend
+# Automated Typescript Express Backend
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
