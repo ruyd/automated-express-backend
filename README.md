@@ -2,11 +2,11 @@
 
 Modern template for Express backends and microservices
 
-Automatic API generation and Swagger admin portal based on sequelize models
+Define your sequelize models and automatically get a fully documented API with SwaggerUI
 
-Generic reusable functions to speed up development
+That's it, focus on actual functionality, automate the boilerplate stuf
 
-## Features
+## Developer Experience
 
 - Async Errors
 - Sequelize
