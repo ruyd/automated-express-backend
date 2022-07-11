@@ -1,5 +1,7 @@
 # Automated Express Backend
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Modern template for Express backends and microservices
 
 Define your sequelize models and automatically get a fully documented API with SwaggerUI
