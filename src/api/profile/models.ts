@@ -1,28 +1,27 @@
+import { User } from '@root/lib'
 import { DataTypes, Model } from 'sequelize'
 import db, { commonOptions } from '../../shared/db'
-
-export interface User {
-  id: string
-  name: string
-  email: string
-  createdAt?: Date
-  updatedAt?: Date
-}
 
 export type UserInstance = Model<User>
 
 export const UserModel = db.define<UserInstance>(
   'user',
   {
-    id: {
+    userId: {
       type: DataTypes.UUID,
       primaryKey: true,
       defaultValue: DataTypes.UUIDV4,
     },
-    name: {
+    firstName: {
+      type: DataTypes.STRING,
+    },
+    lastName: {
       type: DataTypes.STRING,
     },
     email: {
+      type: DataTypes.STRING,
+    },
+    picture: {
       type: DataTypes.STRING,
     },
   },
@@ -30,3 +29,11 @@ export const UserModel = db.define<UserInstance>(
     ...commonOptions,
   }
 )
+
+export const UserPublicAttributes = [
+  'userId',
+  'firstName',
+  'lastName',
+  'email',
+  'picture',
+]

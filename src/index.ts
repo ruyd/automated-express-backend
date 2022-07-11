@@ -15,7 +15,7 @@ import { swaggerDocModelInject } from './api/_auto/swagger'
   await db.sync()
 
   const app: Express = express()
-  app.use(express.json())
+  app.use(express.json({ limit: '1mb' }))
   app.use(cors())
 
   //Swagger
@@ -49,7 +49,7 @@ import { swaggerDocModelInject } from './api/_auto/swagger'
 
   app.listen(config.port, () => {
     console.log(
-      `⚡️[server]: Server is running at https://localhost:${config.port} with API Swagger at /docs`
+      `⚡️[server]: Server is running at https://localhost:${config.port} with SwaggerUI Admin at ${config.swaggerSetup.basePath}`
     )
   })
 })()

@@ -1,6 +1,7 @@
 import { Model, ModelStatic } from 'sequelize/types'
+import { Schema, SwaggerDefinition } from 'swagger-jsdoc'
 
-const conversions = {
+const conversions: Record<string, string> = {
   INTEGER: 'number',
   BIGINT: 'number',
   FLOAT: 'number',
@@ -14,15 +15,17 @@ const conversions = {
   TIME: 'string',
 }
 
-export function getSchema(model: any) {
+export function getSchema(model: ModelStatic<Model>) {
   const excluded = ['createdAt', 'updatedAt', 'deletedAt']
-  const columns = Object.entries(model.tableAttributes).filter(
+  const columns = Object.entries(model.getAttributes()).filter(
     ([name]) => !excluded.includes(name)
-  ) as [[string, any]]
-  const properties = {}
+  ) as [[string, { type: string; allowNull: boolean }]]
+  const properties: { [key: string]: Schema } = {}
   for (const [name, attribute] of columns) {
-    const type = conversions[attribute.type] || 'string'
-    const definition = attribute.allowNull ? { type, required: true } : { type }
+    const type: string = conversions[attribute.type] || 'string'
+    const definition: Schema = attribute.allowNull
+      ? { type, required: true }
+      : { type }
     properties[name] = definition
   }
   return {
@@ -145,7 +148,7 @@ export function getPaths(model: typeof Model) {
 
 export function swaggerDocModelInject(
   models: ModelStatic<Model>[],
-  swaggerDoc
+  swaggerDoc: Partial<SwaggerDefinition>
 ) {
   for (const model of models) {
     const schema = getSchema(model)

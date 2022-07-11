@@ -1,4 +1,5 @@
 import express from 'express'
+import { tokenCheckWare } from '../../shared/auth'
 import { edit, login, register } from './controller'
 
 const router = express.Router()
@@ -69,7 +70,7 @@ router.post('/login', login)
  */
 router.post('/register', register)
 
-router.post('/edit', edit)
+router.post('/edit', tokenCheckWare, edit)
 
 router.post('/oauthcallback', (req, res) => {
   const { oauthToken: token } = req.body
@@ -77,7 +78,7 @@ router.post('/oauthcallback', (req, res) => {
   res.json({ token })
 })
 
-router.post('/logff', (req, res) => {
+router.post('/logoff', tokenCheckWare, (req, res) => {
   res.json({ success: true })
 })
 
