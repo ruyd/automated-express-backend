@@ -4,7 +4,7 @@
 
 Modern template for NodeJS Express backends and microservices
 
-Just define your sequelize models and get a full CRUD API with a SwaggerUI
+Just define your sequelize models and get a full CRUD API with SwaggerUI
 
 Focus on functionality, automate the boilerplate stuff
 
