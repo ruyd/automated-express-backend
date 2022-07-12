@@ -4,7 +4,7 @@ import { NextFunction, Request, Response } from 'express'
 export interface HttpErrorParams<T> {
   message?: string
   name?: string
-  data?: T // not mine but will do, thx
+  data?: T
   status?: number
   stack?: string
   isPublic?: boolean
