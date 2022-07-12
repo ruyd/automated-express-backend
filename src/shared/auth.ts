@@ -9,7 +9,6 @@ export interface AppAccessToken extends JwtPayload {
   userId: string
   roles: string[]
 }
-
 export interface oAuthError {
   error?: string
   error_description?: string
@@ -115,8 +114,6 @@ export async function authProviderLogin(
   username: string,
   password: string
 ): Promise<oAuthResponse> {
-
-  //Error handling here? Missing try catch
   const response = await axios.post(
     `${config.auth?.baseUrl}/oauth/token`,
     {
@@ -136,7 +133,7 @@ export async function authProviderLogin(
 
 export async function authProviderRegister(
   payload: Record<string, string>
-): Promise<Partial<oAuthRegistered>> { //should the return type here also be | oAuthError like you have down below in the next method?
+): Promise<Partial<oAuthRegistered | oAuthError>> {
   try {
     const response = await axios.post(
       `${config.auth?.baseUrl}/dbconnections/signup`,
@@ -151,8 +148,8 @@ export async function authProviderRegister(
       }
     )
     return response.data
-  } catch (error: any) { //if you can cast to unknown instead of any for better TS strictness, in your errors do type checking
-    
+  } catch (error: any) {
+    //if you can cast to unknown instead of any for better TS strictness, in your errors do type checking
     return {
       error: error.response?.data?.name,
       error_description: error.response?.data?.description,
