@@ -23,7 +23,7 @@ export interface Config {
   }
   swaggerSetup: OAS3Definition
 }
-
+//I believe the way you set this up would only allow for 1 api version? How would I run a v1 and v2 side by side? Example I want to make a change to an existing API but I dont want to break existing callers. So how can I have a v2 of a route with a slightly different JSON schema?
 const apiVersion = 'v1'
 const config: Config = {
   version: apiVersion,

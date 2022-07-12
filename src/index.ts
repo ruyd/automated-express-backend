@@ -1,4 +1,5 @@
 import 'express-async-errors'
+//its preference but you can switch to absolute path. You can configure that in your tsconfig
 import config from './shared/config'
 import express, { Express, Request, Response } from 'express'
 import cors from 'cors'
@@ -14,6 +15,8 @@ import { swaggerDocModelInject } from './api/_auto/swagger'
   await db.createSchema(config.db.schema, {})
   await db.sync()
 
+
+  //maybe consider using helmet or another middleware logging tool so you can see all request/responses
   const app: Express = express()
   app.use(express.json({ limit: '1mb' }))
   app.use(cors())
@@ -52,4 +55,5 @@ import { swaggerDocModelInject } from './api/_auto/swagger'
       `⚡️[server]: Server is running at https://localhost:${config.port} with SwaggerUI Admin at ${config.swaggerSetup.basePath}`
     )
   })
+
 })()

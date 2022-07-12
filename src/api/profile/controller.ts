@@ -11,6 +11,10 @@ import { AppAccessToken } from '../../shared/auth'
 import { v4 as uuid } from 'uuid'
 
 export async function register(req: express.Request, res: express.Response) {
+
+  //I believe I understand how your handling errors here. In any error scenario even validation you throw, and it gets caught un your error handler middleware will
+  //that works, and could be preference. But I prefer try/catch/finally in my controller methods. It gives me the ability to find fine grained control. In some cases I might want to return a 400 error
+  //in other cases I might want to return a 404 or even 500. You can do that pretty easily inline and also wrapping the function in a try catch
   const payload = req.body
   if (!payload) {
     throw new Error('Missing payload')

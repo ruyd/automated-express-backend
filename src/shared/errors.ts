@@ -1,10 +1,10 @@
 import httpStatus from 'http-status'
 import { NextFunction, Request, Response } from 'express'
 
-export interface HttpErrorParams {
+export interface HttpErrorParams<T> {
   message?: string
   name?: string
-  data?: unknown
+  data?: T //possible consider using generics here, I did a refactor of this to show how it could be done. I used unknown below because I dont know that the types should be, but maybe you do
   status?: number
   stack?: string
   isPublic?: boolean
@@ -27,7 +27,7 @@ export class HttpError extends Error {
    * @param {string} stack - Error stack.
    * @param {boolean} isPublic - Whether the message should be visible to user or not.
    */
-  constructor(params: HttpErrorParams = {}) {
+  constructor(params: HttpErrorParams<unknown> = {}) {
     const {
       message = 'API error',
       name = 'API_ERROR',
@@ -182,9 +182,9 @@ export class HttpInternalServerError extends HttpError {
 }
 
 type HttpErrorResponse = Required<
-  Pick<HttpErrorParams, 'status' | 'message'> & { code: string }
+  Pick<HttpErrorParams<unknown>, 'status' | 'message'> & { code: string }
 > &
-  Pick<HttpErrorParams, 'data' | 'stack'>
+  Pick<HttpErrorParams<unknown>, 'data' | 'stack'>
 
 /**
  * Handler for all requests that throw an Error.
@@ -213,6 +213,7 @@ export function errorHandler(
   )
 
   if (process.env.NODE_ENV === 'production') {
+    //do you need some kind of server logging so this doesnt get lost?
     delete response.stack
   }
 
