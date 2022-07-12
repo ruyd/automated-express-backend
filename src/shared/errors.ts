@@ -4,7 +4,7 @@ import { NextFunction, Request, Response } from 'express'
 export interface HttpErrorParams<T> {
   message?: string
   name?: string
-  data?: T //possible consider using generics here, I did a refactor of this to show how it could be done. I used unknown below because I dont know that the types should be, but maybe you do
+  data?: T // not mine but will do, thx
   status?: number
   stack?: string
   isPublic?: boolean
@@ -211,11 +211,6 @@ export function errorHandler(
     `Client with IP="${req.ip}" failed to complete request to="${req.method}" originating from="${req.originalUrl}". Status="${response.status}" Message="${err.message}"`,
     err
   )
-
-  if (process.env.NODE_ENV === 'production') {
-    //do you need some kind of server logging so this doesnt get lost?
-    delete response.stack
-  }
 
   res.status(response.status)
   res.json(response)
