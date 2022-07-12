@@ -21,14 +21,14 @@ Focus on functionality, automate the boilerplate stuff
 
 ### .env
 
-> PORT=3001
-> DB_SSL=false
-> DB_URL=postgres://postgres:pass@localhost:5432/xyz
-> DB_SCHEMA=public
-> TOKEN_SECRET=
-> AUTH_BASE_URL=https://xzy.auth0.com
-> AUTH_CLIENT_SECRET=
-> AUTH_CLIENT_ID=
+> PORT=3001<br>
+> DB_SSL=false<br>
+> DB_URL=postgres://postgres:pass@localhost:5432/xyz<br>
+> DB_SCHEMA=public<br>
+> TOKEN_SECRET=<br>
+> AUTH_BASE_URL=https://xzy.auth0.com<br>
+> AUTH_CLIENT_SECRET=<br>
+> AUTH_CLIENT_ID=<br>
 
 ### Auth0
 
