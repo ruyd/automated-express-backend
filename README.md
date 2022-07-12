@@ -33,5 +33,5 @@ Focus on functionality, automate the boilerplate stuff
 ### Auth0
 
 1. Set Authentication > Database to: Username-Password-Authentication
-2. Create accessToken rule with code from \setup\auth0.js
+2. Create enrichAccessToken rule with code from \setup\auth0.js
 3. Set Applications > App > Advanced > Grant Types check: Password
