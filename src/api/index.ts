@@ -1,7 +1,7 @@
 import express from 'express'
 import { autoApiRouterInject } from './_auto/routes'
 import profile from './profile/routes'
-import { DrawingModel } from './drawings/models'
+import { DrawingModel } from './sample/models'
 import { UserModel } from './profile/models'
 import { tokenCheckWare } from '../shared/auth'
 
