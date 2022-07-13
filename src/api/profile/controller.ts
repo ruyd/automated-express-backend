@@ -3,6 +3,7 @@ import {
   createToken,
   authProviderLogin,
   authProviderRegister,
+  ReqWithAuth,
 } from '../../shared/auth'
 import { createOrUpdate } from '../_auto/controller'
 import { UserModel, UserPublicAttributes } from './models'
@@ -64,7 +65,7 @@ export async function edit(req: express.Request, res: express.Response) {
   if (!payload) {
     throw new Error('Missing payload')
   }
-  const auth = (req as any).auth as AppAccessToken
+  const auth = (req as ReqWithAuth).auth as AppAccessToken
   payload.userId = auth.userId
   const user = await createOrUpdate(UserModel, payload)
   res.json({ user })

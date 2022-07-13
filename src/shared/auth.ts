@@ -56,7 +56,7 @@ export async function tokenCheckWare(
   if (config.auth?.algorithm === 'RS256' && header && token) {
     const result = await jwkClient.getSigningKey(header.kid)
     const key = result.getPublicKey()
-    const _ = jwt.verify(token, key, { algorithms: ['RS256'] })
+    jwt.verify(token, key, { algorithms: ['RS256'] })
     return next()
   }
 
