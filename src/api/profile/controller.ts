@@ -3,7 +3,6 @@ import {
   createToken,
   authProviderLogin,
   authProviderRegister,
-  decodeToken,
 } from '../../shared/auth'
 import { createOrUpdate } from '../_auto/controller'
 import { UserModel, UserPublicAttributes } from './models'

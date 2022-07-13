@@ -1,10 +1,10 @@
 import httpStatus from 'http-status'
-import { NextFunction, Request, Response } from 'express'
+import { Request, Response } from 'express'
 
-export interface HttpErrorParams<T> {
+export interface HttpErrorParams {
   message?: string
   name?: string
-  data?: T
+  data?: unknown
   status?: number
   stack?: string
   isPublic?: boolean
@@ -27,7 +27,7 @@ export class HttpError extends Error {
    * @param {string} stack - Error stack.
    * @param {boolean} isPublic - Whether the message should be visible to user or not.
    */
-  constructor(params: HttpErrorParams<unknown> = {}) {
+  constructor(params: HttpErrorParams = {}) {
     const {
       message = 'API error',
       name = 'API_ERROR',
@@ -182,9 +182,9 @@ export class HttpInternalServerError extends HttpError {
 }
 
 type HttpErrorResponse = Required<
-  Pick<HttpErrorParams<unknown>, 'status' | 'message'> & { code: string }
+  Pick<HttpErrorParams, 'status' | 'message'> & { code: string }
 > &
-  Pick<HttpErrorParams<unknown>, 'data' | 'stack'>
+  Pick<HttpErrorParams, 'data' | 'stack'>
 
 /**
  * Handler for all requests that throw an Error.
@@ -196,8 +196,7 @@ type HttpErrorResponse = Required<
 export function errorHandler(
   err: HttpError,
   req: Request,
-  res: Response,
-  next: NextFunction
+  res: Response
 ): void {
   const response: HttpErrorResponse = {
     status: err.status || httpStatus.INTERNAL_SERVER_ERROR,

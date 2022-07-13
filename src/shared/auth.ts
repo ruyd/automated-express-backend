@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosResponse } from 'axios'
 import express from 'express'
 import { expressjwt } from 'express-jwt'
 import jwksRsa from 'jwks-rsa'
@@ -148,8 +148,8 @@ export async function authProviderRegister(
       }
     )
     return response.data
-  } catch (error: any) {
-    //if you can cast to unknown instead of any for better TS strictness, in your errors do type checking
+  } catch (err: unknown) {
+    const error = err as Error & { response: AxiosResponse }
     return {
       error: error.response?.data?.name,
       error_description: error.response?.data?.description,
@@ -170,7 +170,8 @@ export async function authProviderChangePassword(
       }
     )
     return response.data
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err as Error & { response: AxiosResponse }
     return {
       error: error.response?.data?.name,
       error_description: error.response?.data?.description,
@@ -198,7 +199,8 @@ export async function authProviderPatch(payload: {
       }
     )
     return response.data
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err as Error & { response: AxiosResponse }
     return {
       error: error.response?.data?.name,
       error_description: error.response?.data?.description,
