@@ -7,8 +7,9 @@ import {
 } from '../../shared/auth'
 import { createOrUpdate } from '../_auto/controller'
 import { UserModel } from '../../types/user'
-import { AppAccessToken, getPictureMock } from '@root/lib'
+import { AppAccessToken } from '../../types'
 import { v4 as uuid } from 'uuid'
+import { getPictureMock } from '../..//shared/util'
 
 export async function register(req: express.Request, res: express.Response) {
   const payload = req.body

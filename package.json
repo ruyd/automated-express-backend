@@ -14,7 +14,6 @@
     "clean": "rm -rf node_modules package-lock.json dist"
   },
   "dependencies": {
-    "@root/lib": "file:../packages/lib",
     "axios": "^0.27.2",
     "cors": "^2.8.5",
     "dotenv": "^16.0.1",
