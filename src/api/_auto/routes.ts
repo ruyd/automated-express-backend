@@ -1,7 +1,8 @@
 import express from 'express'
 import { Model, ModelStatic, Order } from 'sequelize/types'
-import { ReqWithAuth } from '../../shared/auth'
-import { createOrUpdate, deleteIfExists, getIfExists, list } from './controller'
+import { entities, ModelConfig } from '../../shared/db'
+import { getAuthWare, ReqWithAuth } from '../../shared/auth'
+import { createOrUpdate, getIfExists, list } from './controller'
 
 export interface AutoApiConfig {
   userIdColumn: string
@@ -43,8 +44,34 @@ export async function saveHandler(
   res.json(result)
 }
 
+export async function getUserRelatedRecord(
+  r: express.Request,
+  model: ModelStatic<Model>
+) {
+  const req = r as ReqWithAuth
+  const authId = autoApiConfig.getAuthUserId(req)
+  const instance = await getIfExists(model, req.params.id)
+  if (
+    authId &&
+    Object.keys(model.getAttributes()).includes(autoApiConfig.userIdColumn)
+  ) {
+    const roles = req.config?.roles || []
+    const hasRole = roles ? roles?.every((r) => roles.includes(r)) : false
+    const item = instance.get()
+    if (authId !== item[autoApiConfig.userIdColumn] && !hasRole) {
+      throw new Error('Unauthorized access of another user data')
+    } else {
+      console.warn(
+        `user accesing another user ${model.tableName} ${authId} != 
+        ${item[autoApiConfig.userIdColumn]}`
+      )
+    }
+  }
+  return instance
+}
+
 export async function deleteHandler(
-  this: typeof Model,
+  this: ModelStatic<Model>,
   req: express.Request,
   res: express.Response
 ) {
@@ -52,8 +79,9 @@ export async function deleteHandler(
     throw new Error('this is not defined')
   }
   const model = this as ModelStatic<Model>
-  const result = await deleteIfExists(model, req.params.id)
-  res.json(result)
+  const instance = await getUserRelatedRecord(req, model)
+  instance.destroy()
+  res.json({ success: true })
 }
 
 export async function getHandler(
@@ -123,20 +151,21 @@ export async function listHandler(
  * @param router - express router
  * @param authMiddleware - token check middleware
  **/
-export function autoApiRouterInject(
+export function autoApiRouter(
   models: ModelStatic<Model>[],
-  router: express.Router,
-  authMiddleware: (
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction
-  ) => Promise<void>
-) {
+  router: express.Router
+): void {
   for (const model of models) {
+    const cfg = entities.find((m) => m.name === model.name) as ModelConfig
+    const authCheck = getAuthWare(cfg).authWare
+    const unsecure: express.Handler = (_r, _p, n) => n()
+    const readCheck = cfg.unsecure || cfg.unsecureRead ? unsecure : authCheck
+    const writeCheck = cfg.unsecure ? unsecure : authCheck
+
     const prefix = model.name.toLowerCase()
-    router.get(`/${prefix}`, authMiddleware, listHandler.bind(model))
-    router.get(`/${prefix}/:id`, authMiddleware, getHandler.bind(model))
-    router.post(`/${prefix}`, authMiddleware, saveHandler.bind(model))
-    router.delete(`/${prefix}/:id`, authMiddleware, deleteHandler.bind(model))
+    router.get(`/${prefix}`, readCheck, listHandler.bind(model))
+    router.get(`/${prefix}/:id`, readCheck, getHandler.bind(model))
+    router.post(`/${prefix}`, writeCheck, saveHandler.bind(model))
+    router.delete(`/${prefix}/:id`, writeCheck, deleteHandler.bind(model))
   }
 }

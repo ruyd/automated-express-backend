@@ -1,3 +1,6 @@
+/**
+ * Required auth0 rule to get access token to work
+ */
 function enrichAccessToken(user, context, callback) {
   let accessTokenClaims = context.accessToken || {};
   const assignedRoles = (context.authorization || {}).roles;

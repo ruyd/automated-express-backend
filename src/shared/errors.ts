@@ -1,5 +1,5 @@
 import httpStatus from 'http-status'
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 
 export interface HttpErrorParams {
   message?: string
@@ -196,7 +196,8 @@ type HttpErrorResponse = Required<
 export function errorHandler(
   err: HttpError,
   req: Request,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): void {
   const response: HttpErrorResponse = {
     status: err.status || httpStatus.INTERNAL_SERVER_ERROR,

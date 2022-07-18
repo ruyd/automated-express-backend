@@ -4,11 +4,11 @@ import express, { Express, Request, Response } from 'express'
 import cors from 'cors'
 import swaggerUi from 'swagger-ui-express'
 import swaggerJsdoc from 'swagger-jsdoc'
-import db from './shared/db'
-import api, { autoApiModels } from './api'
+import db, { models } from './shared/db'
+import api from './api'
 import { errorHandler } from './shared/errors'
 import { swaggerDocModelInject } from './api/_auto/swagger'
-import helmet from 'helmet'
+import { autoApiRouter } from './api/_auto/routes'
 ;(async () => {
   //Initialize Models
   await db.authenticate()
@@ -16,18 +16,15 @@ import helmet from 'helmet'
   await db.sync({ alter: !config.production })
 
   const app: Express = express()
-  app.use(helmet())
-  app.use(express.json({ limit: '1mb' }))
+  app.use(express.json({ limit: config.jsonLimit }))
   app.use(cors())
 
-  //Swagger
+  //Auto Swagger
   const swaggerDoc = swaggerJsdoc({
     swaggerDefinition: config.swaggerSetup,
-    apis: ['./src/**/swagger.yaml', './src/**/routes.ts'],
+    apis: ['./src/**/swagger.yaml', './src/api/**/*.ts'],
   })
-
-  swaggerDocModelInject(autoApiModels, swaggerDoc)
-
+  swaggerDocModelInject(models, swaggerDoc)
   app.use(
     '/docs',
     swaggerUi.serve,
@@ -38,6 +35,9 @@ import helmet from 'helmet'
     })
   )
 
+  //Auto CRUD
+  autoApiRouter(models, api)
+
   //Apply API
   app.use(`/${config.prefix}`, api)
 
@@ -45,8 +45,17 @@ import helmet from 'helmet'
   app.use(errorHandler)
 
   //Start server
-  app.get('/', (req: Request, res: Response) => {
-    res.send('Starter Backend x')
+  app.get('/', (_req: Request, res: Response) => {
+    res.send(`<html><title>${config.swaggerSetup.info.title}</title>
+    <body style="
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    ">
+    <div>
+    ⚡️[server]: Server is running at https://localhost:${config.port} with <a href="${config.swaggerSetup.basePath}">SwaggerUI Admin at ${config.swaggerSetup.basePath}</a>
+    </div>
+    </body></html>`)
   })
 
   app.listen(config.port, () => {

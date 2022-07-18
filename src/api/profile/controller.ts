@@ -6,9 +6,9 @@ import {
   ReqWithAuth,
 } from '../../shared/auth'
 import { createOrUpdate } from '../_auto/controller'
-import { UserModel, UserPublicAttributes } from './models'
+import { UserModel } from '../../types/user'
+import { AppAccessToken, getPictureMock } from '@root/lib'
 import { v4 as uuid } from 'uuid'
-import { AppAccessToken } from '../../shared/auth'
 
 export async function register(req: express.Request, res: express.Response) {
   const payload = req.body
@@ -41,13 +41,8 @@ export async function login(req: express.Request, res: express.Response) {
     throw new Error(response.error_description)
   }
 
-  // const accessToken = decodeToken(response.access_token)
-  // if (accessToken.verified) {
-  // }
-
   const user = await UserModel.findOne({
     where: { email },
-    attributes: UserPublicAttributes,
   })
 
   if (!user) {
@@ -71,10 +66,8 @@ export async function edit(req: express.Request, res: express.Response) {
   res.json({ user })
 }
 
-export async function setPictureIfEmpty(payload: Record<string, string>) {
+export function setPictureIfEmpty(payload: Record<string, string>): void {
   if (!payload?.picture && payload.firstName && payload.lastName) {
-    const f = payload.firstName.charAt(0).toLowerCase()
-    const l = payload.lastName.charAt(0).toLowerCase()
-    payload.picture = `https://i2.wp.com/cdn.auth0.com/avatars/${f}${l}.png?ssl=1`
+    payload.picture = getPictureMock(payload)
   }
 }

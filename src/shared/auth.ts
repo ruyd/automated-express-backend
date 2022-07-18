@@ -2,13 +2,11 @@ import axios, { AxiosResponse } from 'axios'
 import express from 'express'
 import { expressjwt } from 'express-jwt'
 import jwksRsa from 'jwks-rsa'
-import jwt, { JwtPayload } from 'jsonwebtoken'
+import jwt from 'jsonwebtoken'
 import config from './config'
+import { AppAccessToken } from '@root/lib'
+import { ModelConfig } from './db'
 
-export interface AppAccessToken extends JwtPayload {
-  userId: string
-  roles: string[]
-}
 export interface oAuthError {
   error?: string
   error_description?: string
@@ -31,7 +29,10 @@ export interface oAuthRegistered extends oAuthError {
   email_verified: boolean
 }
 
-export type ReqWithAuth = express.Request & { auth: AppAccessToken }
+export type ReqWithAuth = express.Request & {
+  auth: AppAccessToken
+  config?: ModelConfig
+}
 
 const jwkClient = jwksRsa({
   jwksUri: `${config.auth?.baseUrl}/.well-known/jwks.json`,
@@ -44,36 +45,58 @@ const jwtVerify = expressjwt({
   algorithms: ['HS256'],
 })
 
-export async function tokenCheckWare(
-  req: express.Request,
-  _res: express.Response,
-  next: express.NextFunction
-) {
-  if (!config?.tokenSecret) {
-    return next()
+export type ModelWare = {
+  config: ModelConfig
+  authWare: express.Handler
+}
+/**
+ * Returns config instance with middleware for JWT and Roles
+ * @param cfg
+ * @returns
+ */
+export function getAuthWare(cfg?: ModelConfig): ModelWare {
+  const self = {} as ModelWare
+  self.config = cfg as ModelConfig
+  self.authWare = async function (
+    req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction
+  ) {
+    const { header, token } = setRequest(req, self.config)
+    if (config.auth?.algorithm === 'RS256' && header && token) {
+      const result = await jwkClient.getSigningKey(header.kid)
+      const key = result.getPublicKey()
+      const auth = jwt.verify(token, key, {
+        algorithms: ['RS256'],
+      }) as AppAccessToken
+      if (
+        self.config?.roles?.length &&
+        !self.config?.roles?.every((r) => auth.roles.includes(r))
+      ) {
+        throw Error('Unauthorized - Needs user access role for request')
+      }
+      return next()
+    }
+    return jwtVerify(req, _res, next)
   }
-  const { header, token } = setRequest(req as ReqWithAuth)
-  if (config.auth?.algorithm === 'RS256' && header && token) {
-    const result = await jwkClient.getSigningKey(header.kid)
-    const key = result.getPublicKey()
-    jwt.verify(token, key, { algorithms: ['RS256'] })
-    return next()
-  }
-
-  return jwtVerify(req, _res, next)
+  return self
 }
 
-export function hasRole(
-  req: express.Request & { auth: { roles: string[] } },
-  role: string
-): boolean {
-  return req.auth?.roles?.includes(role)
-}
+/**
+ * Solo JWT check
+ */
+export const tokenCheckWare = getAuthWare().authWare
 
-export function setRequest(req: ReqWithAuth): {
+export function setRequest(
+  r: express.Request,
+  cfg: ModelConfig
+): {
   header?: jwt.JwtHeader
   token?: string
 } {
+  const req = r as ReqWithAuth
+  req.config = cfg
+
   if (!req.headers.authorization?.includes('Bearer ')) {
     return {}
   }
@@ -133,7 +156,7 @@ export async function authProviderLogin(
 
 export async function authProviderRegister(
   payload: Record<string, string>
-): Promise<Partial<oAuthRegistered | oAuthError>> {
+): Promise<Partial<oAuthRegistered>> {
   try {
     const response = await axios.post(
       `${config.auth?.baseUrl}/dbconnections/signup`,
@@ -149,7 +172,9 @@ export async function authProviderRegister(
     )
     return response.data
   } catch (err: unknown) {
-    const error = err as Error & { response: AxiosResponse }
+    const error = err as Error & {
+      response: AxiosResponse
+    }
     return {
       error: error.response?.data?.name,
       error_description: error.response?.data?.description,

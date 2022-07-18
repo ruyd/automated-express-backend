@@ -9,6 +9,7 @@ export interface Config {
   prefix: string
   port: number
   tokenSecret?: string
+  jsonLimit: string
   db: {
     url: string
     schema: string
@@ -31,6 +32,7 @@ const config: Config = {
   prefix,
   port: Number(process.env.PORT || 3001),
   tokenSecret: process.env.TOKEN_SECRET,
+  jsonLimit: process.env.JSON_LIMIT || '1mb',
   db: {
     url: process.env.DB_URL || '',
     schema: process.env.DB_SCHEMA || 'public',
