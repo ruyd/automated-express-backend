@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable no-undef */
 const fs = require('fs')
-const { exec, execSync } = require('child_process');
+const { exec } = require('child_process');
 const options = { env: { FORCE_COLOR: true } }
 
 async function run() {
