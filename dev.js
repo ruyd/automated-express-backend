@@ -24,17 +24,21 @@ async function init() {
   console.warn('Warming up node_modules and dist, will take a few...')
   const npm = exec('npm i', options)
   npm.stdout.pipe(process.stdout)
-  console.log('node_modules: ✔')
-  const tsc = exec('tsc', options)
-  tsc.stdout.pipe(process.stdout)
-
-  if (fs.existsSync('dist')) {
-    console.log('dist: ✔')
-    run()
-  } else {
-    console.error('something went wrong, dist not generated, aborting...')
-    return
-  }
+  npm.stderr.pipe(process.stdout)
+  npm.on('exit', () => {
+    console.log('node_modules installed: ✔')
+    const tsc = exec('tsc', options)
+    tsc.stdout.pipe(process.stdout)
+    tsc.on('exit', () => {
+      if (fs.existsSync('dist')) {
+        console.log('dist: ✔')
+        run()
+      } else {
+        console.error('something went wrong, dist not generated, aborting...')
+        return
+      }
+    })
+  })
 }
 
 //RUN

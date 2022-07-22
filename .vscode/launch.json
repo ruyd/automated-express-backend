@@ -6,7 +6,7 @@
     "configurations": [
         {
             "type": "node-terminal",
-            "name": "Node Terminal",
+            "name": "npm run dev",
             "command": "npm run dev",
             "request": "launch",
             "cwd": "${workspaceRoot}",

@@ -1,8 +1,8 @@
 # Automated TypeScript Express Backend
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Demo](https://img.shields.io/badge/Deployment-HEROKU-GREEN.svg)](https://drawspace-api.herokuapp.com)
 
-Modern template for NodeJS Express backends and microservices
+NodeJS Express Starter for backends and microservices
 
 Just define your sequelize models and get a full CRUD API with SwaggerUI at runtime
 
@@ -35,3 +35,5 @@ Automate the boilerplate stuff
 1. Set Authentication > Database to: Username-Password-Authentication
 2. Create enrichAccessToken rule with code from \setup\auth0.js
 3. Set Applications > App > Advanced > Grant Types check: Password
+
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)

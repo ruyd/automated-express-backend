@@ -6,7 +6,7 @@
   "main": "src/index.js",
   "scripts": {
     "build": "npx tsc --build --verbose",
-    "start": "node dist/src/index.js",
+    "start": "npm run dev",
     "dev": "node dev.js",
     "concurrently": "concurrently \"npx tsc --watch\" \"nodemon -q dist/src/index.js\"",
     "mon": "nodemon -q dist/src/index.js",
