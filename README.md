@@ -1,6 +1,6 @@
 # Automated TypeScript Express Backend
 
-[![Demo](https://img.shields.io/badge/Deployment-HEROKU-GREEN.svg)](https://drawspace-api.herokuapp.com)
+[![Demo](https://img.shields.io/badge/Deployment-HEROKU-GREEN.svg)](https://drawspace-api.herokuapp.com/docs)
 
 NodeJS Express Starter for backends and microservices
 
