@@ -13,7 +13,7 @@ import { autoApiRouter } from './api/_auto/routes'
   //Initialize Models
   await db.authenticate()
   await db.createSchema(config.db.schema, {})
-  await db.sync({ alter: !config.production })
+  await db.sync({ alter: false, force: false })
 
   const app: Express = express()
   app.use(express.json({ limit: config.jsonLimit }))
@@ -22,8 +22,9 @@ import { autoApiRouter } from './api/_auto/routes'
   //Auto Swagger
   const swaggerDoc = swaggerJsdoc({
     swaggerDefinition: config.swaggerSetup,
-    apis: ['./src/**/swagger.yaml', './src/api/**/*.ts'],
+    apis: ['**/api/swagger.yaml', '**/api/**/index.*s'],
   })
+  console.info('Parsed swagger', swaggerDoc)
   swaggerDocModelInject(models, swaggerDoc)
   app.use(
     '/docs',
@@ -45,7 +46,7 @@ import { autoApiRouter } from './api/_auto/routes'
   app.use(errorHandler)
 
   //Start server
-  app.get('/', (_req: Request, res: Response) => {
+  app.get('/', (req: Request, res: Response) => {
     res.send(`<html><title>${config.swaggerSetup.info.title}</title>
     <body style="
       display: flex;
@@ -53,14 +54,14 @@ import { autoApiRouter } from './api/_auto/routes'
       justify-content: center;
     ">
     <div>
-    ⚡️[server]: Server is running at https://localhost:${config.port} with <a href="${config.swaggerSetup.basePath}">SwaggerUI Admin at ${config.swaggerSetup.basePath}</a>
+    ⚡️[server]: Backend is running on ${req.headers.host} with <a href="${config.swaggerSetup.basePath}">SwaggerUI Admin at ${config.swaggerSetup.basePath}</a>
     </div>
     </body></html>`)
   })
 
   app.listen(config.port, () => {
     console.log(
-      `⚡️[server]: Server is running at https://localhost:${config.port} with SwaggerUI Admin at ${config.swaggerSetup.basePath}`
+      `⚡️[server]: Server is running at port ${config.port} with SwaggerUI Admin at ${config.swaggerSetup.basePath}`
     )
   })
 })()

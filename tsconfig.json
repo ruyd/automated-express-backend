@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "removeComments": false,
     "moduleResolution": "node",
     "esModuleInterop": true,
     "resolveJsonModule": true,
@@ -8,12 +11,6 @@
     "sourceMap": true,
     "baseUrl": ".",
     "outDir": "dist",
-    "noEmitOnError": true,
-    "paths": {
-      "@types": [
-        "types"
-      ]
-    }
   },
   "include": [
     "src",

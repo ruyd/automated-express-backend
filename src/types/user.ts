@@ -9,7 +9,6 @@ export interface User extends Entity {
   lastName?: string
   picture?: string
 }
-
 export type UserInstance = Model<User>
 
 export const UserAttributes = {
@@ -32,4 +31,4 @@ export const UserAttributes = {
   },
 }
 
-export const UserModel = register<User>('user', UserAttributes, false)
+export const UserModel = register<User>('user', UserAttributes)

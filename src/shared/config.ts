@@ -31,12 +31,12 @@ const config: Config = {
   production: process.env.NODE_ENV === 'production',
   prefix,
   port: Number(process.env.PORT || 3001),
-  tokenSecret: process.env.TOKEN_SECRET,
+  tokenSecret: process.env.TOKEN_SECRET || 'x',
   jsonLimit: process.env.JSON_LIMIT || '1mb',
   db: {
-    url: process.env.DB_URL || '',
+    url: process.env.DATABASE_URL || '',
     schema: process.env.DB_SCHEMA || 'public',
-    ssl: process.env.DB_SSL === 'true',
+    ssl: !process.env.DATABASE_URL?.includes('localhost'),
   },
   auth: {
     baseUrl: process.env.AUTH_BASE_URL || '',
@@ -56,6 +56,10 @@ const config: Config = {
       {
         url: `http://localhost:${process.env.PORT}/${prefix}`,
         description: `localhost:${process.env.PORT}`,
+      },
+      {
+        url: `https://${process.env.HOST}/${prefix}`,
+        description: `${process.env.HOST}`,
       },
     ],
     basePath: '/docs',

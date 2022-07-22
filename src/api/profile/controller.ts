@@ -4,12 +4,14 @@ import {
   authProviderLogin,
   authProviderRegister,
   ReqWithAuth,
+  authProviderChangePassword,
 } from '../../shared/auth'
 import { createOrUpdate } from '../_auto/controller'
 import { UserModel } from '../../types/user'
 import { AppAccessToken } from '../../types'
-import { v4 as uuid } from 'uuid'
 import { getPictureMock } from '../..//shared/util'
+import { v4 as uuid } from 'uuid'
+import { decode } from 'jsonwebtoken'
 
 export async function register(req: express.Request, res: express.Response) {
   const payload = req.body
@@ -42,18 +44,39 @@ export async function login(req: express.Request, res: express.Response) {
     throw new Error(response.error_description)
   }
 
-  const user = await UserModel.findOne({
-    where: { email },
-  })
+  let user = (
+    await UserModel.findOne({
+      where: { email },
+    })
+  )?.get()
 
   if (!user) {
-    throw new Error('User not found')
+    const decoded = decode(response.access_token) as AppAccessToken
+    user = await createOrUpdate(UserModel, { email, userId: decoded.userId })
+  }
+
+  if (!user) {
+    throw new Error('Database User could not be get/put')
   }
 
   res.json({
     token: response.access_token,
     user,
   })
+}
+
+export async function forgot(req: express.Request, res: express.Response) {
+  const payload = req.body
+  if (!payload) {
+    throw new Error('Missing payload')
+  }
+
+  const user = await UserModel.findOne({ where: { email: req.body.email } })
+  if (user) {
+    const message = await authProviderChangePassword(payload)
+    res.json({ success: true, message })
+  }
+  res.json({ success: false, message: 'No record found' })
 }
 
 export async function edit(req: express.Request, res: express.Response) {
