@@ -8,6 +8,8 @@ Just define your sequelize models and get a full CRUD API with SwaggerUI at runt
 
 Automate the boilerplate stuff
 
+[Click to see sample app using it](https://github.com/ruyd/fullstack-monorepo)
+
 ## Developer Experience
 
 - Sequelize
