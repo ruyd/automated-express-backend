@@ -33,7 +33,7 @@ const router = express.Router()
  *                 token:
  *                   type: string
  */
-router.post('/login', login)
+router.post('/profile/login', login)
 
 /**
  * @swagger
@@ -68,20 +68,20 @@ router.post('/login', login)
  *                 token:
  *                   type: string
  */
-router.post('/register', register)
+router.post('/profile/register', register)
 
-router.post('/edit', tokenCheckWare, edit)
+router.post('/profile/edit', tokenCheckWare, edit)
 
-router.post('/oauthcallback', (req, res) => {
+router.post('/profile/oauthcallback', (req, res) => {
   const { oauthToken: token } = req.body
 
   res.json({ token })
 })
 
-router.post('/logoff', (_req, res) => {
+router.post('/profile/logoff', (_req, res) => {
   res.json({ success: true })
 })
 
-router.post('/forgot', forgot)
+router.post('/profile/forgot', forgot)
 
 export default router
