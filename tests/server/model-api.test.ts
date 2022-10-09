@@ -3,7 +3,7 @@ import { checkDatabase, Connection } from '../../src/shared/db'
 import createBackend from '../../src/app'
 import { ModelStatic, Model } from 'sequelize'
 import { v4 as uuid } from 'uuid'
-import { createOrUpdate, deleteIfExists, getIfExists } from '../../src/model-api/controller'
+import { createOrUpdate, deleteIfExists, getIfExists } from '../../src/shared/model-api/controller'
 
 const conversions: Record<string, string> = {
   INTEGER: 'number',
