@@ -54,7 +54,14 @@ export async function deleteIfExists<T extends {}>(
   model: ModelStatic<Model<T>>,
   id: string,
 ): Promise<boolean> {
-  const item = await getIfExists(model, id)
-  await item.destroy()
-  return true
+  try {
+    const item = await getIfExists(model, id)
+    await item.destroy()
+    return true
+  } catch (e: unknown) {
+    const err = e as Error
+    logger.error(`${model.name}.deleteIfExists(): ${err.message}`, err)
+    throw new Error(err.message)
+    return false
+  }
 }

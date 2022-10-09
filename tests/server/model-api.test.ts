@@ -137,8 +137,9 @@ describe('model-api', () => {
     })
   }
 
-  for (const model of Connection.models) {
-    const mock = mocks.shift()
+  //loop models in reverse order
+  for (const model of Connection.models.reverse()) {
+    const mock = mocks.pop()
     if (!mock) {
       throw new Error('mock not found')
     }
