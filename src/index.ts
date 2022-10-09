@@ -2,11 +2,11 @@ import express from 'express'
 import config from './shared/config'
 import logger from './shared/logger'
 import { checkDatabase } from './shared/db'
-import createBackend from './app'
+import createBackendApp from './app'
 ;(async () => {
   await checkDatabase()
 
-  const app = createBackend()
+  const app = createBackendApp()
 
   const url =
     (process.env.BASEURL || `http://localhost:${config.port}`) + config.swaggerSetup.basePath

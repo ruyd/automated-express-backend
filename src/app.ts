@@ -10,7 +10,7 @@ import { errorHandler } from './shared/errorHandler'
 import api from './api'
 import cors from 'cors'
 
-export default function createBackend(): express.Express {
+export default function createBackendApp(): express.Express {
   const app = express()
 
   // Basics

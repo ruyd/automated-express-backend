@@ -54,11 +54,17 @@ const config: Config = {
     algorithm: 'RS256',
   },
   swaggerSetup: {
+    openapi: '3.0.0',
     info: {
       title: packageJson.name,
       description: packageJson.description,
       version: packageJson.version,
     },
+    servers: [
+      {
+        url: `/`,
+      },
+    ],
     basePath: '/docs',
   },
 }
