@@ -28,7 +28,7 @@ export default function createBackend(): express.Express {
   // Swagger Endpoint
   const swaggerDoc = swaggerJsdoc({
     swaggerDefinition: config.swaggerSetup as OAS3Definition,
-    apis: ['**/swagger.yaml', '**/api/**/index.*s'],
+    apis: ['api/swagger.yaml', 'api/**/index.*s'],
   }) as OAS3Definition
 
   applyModelsToSwaggerDoc(Connection.models, swaggerDoc)

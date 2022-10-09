@@ -41,7 +41,7 @@ const jwkClient = jwksRsa({
 })
 
 const jwtVerify = expressjwt({
-  secret: config.tokenSecret as string,
+  secret: config.tokenSecret || 'off',
   algorithms: ['HS256'],
 })
 

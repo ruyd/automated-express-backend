@@ -18,6 +18,9 @@ Automate the boilerplate stuff
 - Auto SwaggerUI Admin
 - JWT Security RS256
 - Auth0 Authentication
+- TypeScript Database Migrations with umzug
+- TypeScript Tests with jest
+
 
 ## Setup
 
