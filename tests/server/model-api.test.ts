@@ -30,6 +30,7 @@ export function getMockValue(columnName: string, columnType: string, randomize =
     case 'UUID':
       return uuid()
     case 'TEXT':
+    case '/VARCHAR(*.)/':
       return columnName + suffix
     case 'number':
       return 1 + increment
@@ -39,7 +40,8 @@ export function getMockValue(columnName: string, columnType: string, randomize =
       return new Date().toISOString()
     case 'array':
       return [1, 2, 3]
-    case 'json':
+    case 'JSONB':
+    case 'JSON':
       return { test: 'test' }
     default:
       // eslint-disable-next-line no-console
