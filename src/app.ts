@@ -46,6 +46,7 @@ export default function createBackend(): express.Express {
 
   //Endpoints
   registerModelApiRoutes(Connection.models, api)
+
   app.use(api)
 
   return app
