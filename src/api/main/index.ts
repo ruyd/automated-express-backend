@@ -3,11 +3,13 @@ import sequelize from 'sequelize'
 import { DrawingModel } from '../../shared/types'
 import { list } from '../../shared/model-api/controller'
 
-/**
- *  No subprefix, directly to /api
- */
 const router = express.Router()
 
+/**
+ * @swagger
+ * /gallery
+ *   get:
+ */
 router.get('/gallery', async (req, res) => {
   const items = await list(DrawingModel, {
     where: {
