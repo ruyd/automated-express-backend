@@ -5,7 +5,13 @@ components:
       scheme: bearer
       in: header
   responses:
-    403Unauthorized:
+    Success:
+      description: object
+      content:
+        application/json:
+          schema:
+            type: object
+    Unauthorized:
       description: You do not have permission to access this
       content:
         application/json:
@@ -18,7 +24,7 @@ components:
               message:
                 type: string
                 example: Unauthorized
-    500Error:
+    InternalError:
       description: Unable to process the request
       content:
         application/json:

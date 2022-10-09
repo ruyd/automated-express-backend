@@ -6,9 +6,9 @@ import {
   ReqWithAuth,
   authProviderChangePassword,
 } from '../../shared/auth'
-import { createOrUpdate } from '../_auto/controller'
-import { UserModel } from '../../types/user'
-import { AppAccessToken } from '../../types'
+import { createOrUpdate } from '../../shared/model-api/controller'
+import { UserModel } from '../../shared/types/user'
+import { AppAccessToken } from '../../shared/types'
 import { getPictureMock } from '../..//shared/util'
 import { v4 as uuid } from 'uuid'
 import { decode } from 'jsonwebtoken'

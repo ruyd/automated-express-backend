@@ -1,6 +1,6 @@
 import { Model, DataTypes } from 'sequelize'
 import { Entity } from '.'
-import { register } from '../shared/db'
+import { register } from '../db'
 
 export interface User extends Entity {
   userId: string

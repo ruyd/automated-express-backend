@@ -1,19 +1,22 @@
 import dotenv from 'dotenv'
 import { OAS3Definition } from 'swagger-jsdoc'
 import packageJson from '../../package.json'
+import sequelizeConfig from '../../setup/db.json'
 
 dotenv.config({})
 
 export interface Config {
   production: boolean
-  prefix: string
   port: number
   tokenSecret?: string
   jsonLimit: string
   db: {
+    name: string
     url: string
     schema: string
-    ssl?: boolean
+    ssl: boolean
+    force: boolean
+    alter: boolean
   }
   auth?: {
     baseUrl: string
@@ -23,20 +26,25 @@ export interface Config {
     algorithm: 'RS256' | 'HS256'
     manageToken?: string
   }
-  swaggerSetup: OAS3Definition
+  swaggerSetup: Partial<OAS3Definition>
 }
 
-const prefix = process.env.PREFIX || 'v1'
+//rework with secrets
+const { database, host, username, password, ssl, schema } = sequelizeConfig.development
+const DB_URL = process.env.DB_URL || `postgres://${username}:${password}@${host}/${database}`
+const port = Number(process.env.PORT || 3000)
 const config: Config = {
   production: process.env.NODE_ENV === 'production',
-  prefix,
-  port: Number(process.env.PORT || 3001),
-  tokenSecret: process.env.TOKEN_SECRET || 'x',
+  port,
+  tokenSecret: process.env.TOKEN_SECRET,
   jsonLimit: process.env.JSON_LIMIT || '1mb',
   db: {
-    url: process.env.DATABASE_URL || '',
-    schema: process.env.DB_SCHEMA || 'public',
-    ssl: !process.env.DATABASE_URL?.includes('localhost'),
+    force: false,
+    alter: false,
+    name: database,
+    url: DB_URL,
+    schema,
+    ssl,
   },
   auth: {
     baseUrl: process.env.AUTH_BASE_URL || '',
@@ -46,22 +54,11 @@ const config: Config = {
     algorithm: 'RS256',
   },
   swaggerSetup: {
-    openapi: '3.0.0',
     info: {
       title: packageJson.name,
       description: packageJson.description,
       version: packageJson.version,
     },
-    servers: [
-      {
-        url: `http://localhost:${process.env.PORT}/${prefix}`,
-        description: `localhost:${process.env.PORT}`,
-      },
-      {
-        url: `https://${process.env.HOST}/${prefix}`,
-        description: `${process.env.HOST}`,
-      },
-    ],
     basePath: '/docs',
   },
 }

@@ -1,0 +1,11 @@
+{
+    "development": {
+      "username": "postgres",
+      "password": "1234",
+      "database": "modelapi_dev",
+      "schema": "public",
+      "host": "127.0.0.1",
+      "ssl": false,
+      "dialect": "postgres"
+    }
+  }

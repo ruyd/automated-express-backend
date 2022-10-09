@@ -4,6 +4,6 @@ import main from './main'
 
 const router = express.Router()
 router.use(main)
-router.use('/profile', profile)
+router.use(profile)
 
 export default router

@@ -1,7 +1,7 @@
 import express from 'express'
 import sequelize from 'sequelize'
-import { DrawingModel } from '../../types'
-import { list } from '../_auto/controller'
+import { DrawingModel } from '../../shared/types'
+import { list } from '../../shared/model-api/controller'
 
 /**
  *  No subprefix, directly to /api

@@ -1,6 +1,6 @@
 import { DataTypes } from 'sequelize'
 import { UserModel } from './user'
-import { register } from '../shared/db'
+import { register } from '../db'
 
 import { Entity, User } from '.'
 
@@ -78,7 +78,7 @@ export const DrawingModel = register<Drawing>(
       type: DataTypes.TEXT,
     },
   },
-  true
+  true,
 )
 
 DrawingModel.hasOne(UserModel, {

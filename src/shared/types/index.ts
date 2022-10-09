@@ -13,3 +13,11 @@ export interface Entity {
   updatedAt?: Date
   deletedAt?: Date
 }
+
+export interface PagedResult<T> {
+  items: T[]
+  offset: number
+  limit: number
+  hasMore: boolean
+  total: number
+}

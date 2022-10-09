@@ -1,17 +1,18 @@
 import express from 'express'
 import { Model, ModelStatic, Order } from 'sequelize/types'
-import { entities, ModelConfig } from '../../shared/db'
-import { getAuthWare, ReqWithAuth } from '../../shared/auth'
+import { Connection, ModelConfig } from '../db'
+import { getAuthWare, ReqWithAuth } from '../auth'
 import { createOrUpdate, getIfExists, list } from './controller'
+import logger from '../logger'
 
-export interface AutoApiConfig {
+export interface modelApiConfig {
   userIdColumn: string
   getAuthUserId(req: express.Request): string
 }
 
-export const autoApiConfig: AutoApiConfig = {
+export const modelApiConfig: modelApiConfig = {
   userIdColumn: 'userId',
-  getAuthUserId: (req) => (req as ReqWithAuth).auth?.userId,
+  getAuthUserId: req => (req as ReqWithAuth).auth?.userId,
 }
 
 /**
@@ -20,50 +21,40 @@ export const autoApiConfig: AutoApiConfig = {
  * @param res
  * @returns
  */
-export async function saveHandler(
-  this: typeof Model,
-  req: express.Request,
-  res: express.Response
-) {
+export async function saveHandler(this: typeof Model, req: express.Request, res: express.Response) {
   if (!this) {
     throw new Error('this is not defined')
   }
   if (!req.body) {
-    return res.status(400).send('Request body is missing')
+    res.status(400).send('Request body is missing')
   }
   const model = this as ModelStatic<Model>
-  const authId = autoApiConfig.getAuthUserId(req)
+  const authId = modelApiConfig.getAuthUserId(req)
   if (
     authId &&
-    Object.keys(model.getAttributes()).includes(autoApiConfig.userIdColumn) &&
-    !req.body[autoApiConfig.userIdColumn]
+    Object.keys(model.getAttributes()).includes(modelApiConfig.userIdColumn) &&
+    !req.body[modelApiConfig.userIdColumn]
   ) {
-    req.body[autoApiConfig.userIdColumn] = authId
+    req.body[modelApiConfig.userIdColumn] = authId
   }
   const result = await createOrUpdate(model, req.body)
   res.json(result)
 }
 
-export async function getUserRelatedRecord(
-  r: express.Request,
-  model: ModelStatic<Model>
-) {
+export async function getUserRelatedRecord(r: express.Request, model: ModelStatic<Model>) {
   const req = r as ReqWithAuth
-  const authId = autoApiConfig.getAuthUserId(req)
+  const authId = modelApiConfig.getAuthUserId(req)
   const instance = await getIfExists(model, req.params.id)
-  if (
-    authId &&
-    Object.keys(model.getAttributes()).includes(autoApiConfig.userIdColumn)
-  ) {
+  if (authId && Object.keys(model.getAttributes()).includes(modelApiConfig.userIdColumn)) {
     const roles = req.config?.roles || []
-    const hasRole = roles ? roles?.every((r) => roles.includes(r)) : false
+    const hasRole = roles ? roles?.every(r => roles.includes(r)) : false
     const item = instance.get()
-    if (authId !== item[autoApiConfig.userIdColumn] && !hasRole) {
+    if (authId !== item[modelApiConfig.userIdColumn] && !hasRole) {
       throw new Error('Unauthorized access of another user data')
     } else {
-      console.warn(
+      logger.warn(
         `user accesing another user ${model.tableName} ${authId} != 
-        ${item[autoApiConfig.userIdColumn]}`
+        ${item[modelApiConfig.userIdColumn]}`,
       )
     }
   }
@@ -73,7 +64,7 @@ export async function getUserRelatedRecord(
 export async function deleteHandler(
   this: ModelStatic<Model>,
   req: express.Request,
-  res: express.Response
+  res: express.Response,
 ) {
   if (!this) {
     throw new Error('this is not defined')
@@ -84,11 +75,7 @@ export async function deleteHandler(
   res.json({ success: true })
 }
 
-export async function getHandler(
-  this: typeof Model,
-  req: express.Request,
-  res: express.Response
-) {
+export async function getHandler(this: typeof Model, req: express.Request, res: express.Response) {
   if (!this) {
     throw new Error('this is not defined')
   }
@@ -101,15 +88,11 @@ export async function getHandler(
  * Get Listing
  *
  * Auto detects and filters table based on request.auth.userId === table.userId
- * Import and modify static autoApiConfig to customize
+ * Import and modify static modelApiConfig to customize
  * @param req
  * @param res
  */
-export async function listHandler(
-  this: typeof Model,
-  req: express.Request,
-  res: express.Response
-) {
+export async function listHandler(this: typeof Model, req: express.Request, res: express.Response) {
   if (!this) {
     throw new Error('this is not defined')
   }
@@ -132,9 +115,9 @@ export async function listHandler(
     }
   }
   //userId filtering from authentication token
-  const authId = autoApiConfig.getAuthUserId(req)
-  if (authId && Object.keys(fields).includes(autoApiConfig.userIdColumn)) {
-    where[autoApiConfig.userIdColumn] = authId
+  const authId = modelApiConfig.getAuthUserId(req)
+  if (authId && Object.keys(fields).includes(modelApiConfig.userIdColumn)) {
+    where[modelApiConfig.userIdColumn] = authId
   }
   const limit = Number(req.query.limit || 100)
   const offset = Number(req.query.offset || 0)
@@ -151,13 +134,11 @@ export async function listHandler(
  * @param router - express router
  * @param authMiddleware - token check middleware
  **/
-export function autoApiRouter(
-  models: ModelStatic<Model>[],
-  router: express.Router
-): void {
+export function registerModelApiRoutes(models: ModelStatic<Model>[], router: express.Router): void {
   for (const model of models) {
-    const cfg = entities.find((m) => m.name === model.name) as ModelConfig
+    const cfg = Connection.entities.find(m => m.name === model.name) as ModelConfig
     const authCheck = getAuthWare(cfg).authWare
+    //explicitly applying auth to routes, it might be better to have a global middleware
     const unsecure: express.Handler = (_r, _p, n) => n()
     const readCheck = cfg.unsecure || cfg.unsecureRead ? unsecure : authCheck
     const writeCheck = cfg.unsecure ? unsecure : authCheck

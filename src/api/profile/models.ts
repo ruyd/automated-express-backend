@@ -1,5 +1,5 @@
 import { DataTypes, Model } from 'sequelize'
-import db, { commonOptions } from '../../shared/db'
+import db, { commonOptions, register } from '../../shared/db'
 
 export interface User {
   userId: string
@@ -9,38 +9,24 @@ export interface User {
   picture?: string
 }
 
-export type UserInstance = Model<User>
-
-export const UserModel = db.define<UserInstance>(
-  'user',
-  {
-    userId: {
-      type: DataTypes.UUID,
-      primaryKey: true,
-      defaultValue: DataTypes.UUIDV4,
-    },
-    firstName: {
-      type: DataTypes.STRING,
-    },
-    lastName: {
-      type: DataTypes.STRING,
-    },
-    email: {
-      type: DataTypes.STRING,
-    },
-    picture: {
-      type: DataTypes.STRING,
-    },
+export const UserModel = register<User>('user', {
+  userId: {
+    type: DataTypes.UUID,
+    primaryKey: true,
+    defaultValue: DataTypes.UUIDV4,
   },
-  {
-    ...commonOptions,
-  }
-)
+  firstName: {
+    type: DataTypes.STRING,
+  },
+  lastName: {
+    type: DataTypes.STRING,
+  },
+  email: {
+    type: DataTypes.STRING,
+  },
+  picture: {
+    type: DataTypes.STRING,
+  },
+})
 
-export const UserPublicAttributes = [
-  'userId',
-  'firstName',
-  'lastName',
-  'email',
-  'picture',
-]
+export const UserPublicAttributes = ['userId', 'firstName', 'lastName', 'email', 'picture']

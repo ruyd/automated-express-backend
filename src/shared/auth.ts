@@ -4,7 +4,7 @@ import { expressjwt } from 'express-jwt'
 import jwksRsa from 'jwks-rsa'
 import jwt from 'jsonwebtoken'
 import config from './config'
-import { AppAccessToken } from '../types'
+import { AppAccessToken } from './types'
 import { ModelConfig } from './db'
 
 export interface oAuthError {
@@ -60,7 +60,7 @@ export function getAuthWare(cfg?: ModelConfig): ModelWare {
   self.authWare = async function (
     req: express.Request,
     _res: express.Response,
-    next: express.NextFunction
+    next: express.NextFunction,
   ) {
     const { header, token } = setRequest(req, self.config)
     if (config.auth?.algorithm === 'RS256' && header && token) {
@@ -69,10 +69,7 @@ export function getAuthWare(cfg?: ModelConfig): ModelWare {
       const auth = jwt.verify(token, key, {
         algorithms: ['RS256'],
       }) as AppAccessToken
-      if (
-        self.config?.roles?.length &&
-        !self.config?.roles?.every((r) => auth.roles.includes(r))
-      ) {
+      if (self.config?.roles?.length && !self.config?.roles?.every(r => auth.roles.includes(r))) {
         throw Error('Unauthorized - Needs user access role for request')
       }
       return next()
@@ -89,7 +86,7 @@ export const tokenCheckWare = getAuthWare().authWare
 
 export function setRequest(
   r: express.Request,
-  cfg: ModelConfig
+  cfg: ModelConfig,
 ): {
   header?: jwt.JwtHeader
   token?: string
@@ -125,7 +122,7 @@ export function createToken(obj: object): string {
 export function decodeToken(token: string) {
   const authInfo = jwt.decode(token) as jwt.JwtPayload
   const prefix = config.auth?.ruleNamespace || 'https://'
-  const keys = Object.keys(authInfo).filter((key) => key.includes(prefix))
+  const keys = Object.keys(authInfo).filter(key => key.includes(prefix))
   for (const key of keys) {
     authInfo[key.replace(prefix, '')] = authInfo[key]
     delete authInfo[key]
@@ -135,7 +132,7 @@ export function decodeToken(token: string) {
 
 export async function authProviderLogin(
   username: string,
-  password: string
+  password: string,
 ): Promise<oAuthResponse> {
   const response = await axios.post(
     `${config.auth?.baseUrl}/oauth/token`,
@@ -149,27 +146,24 @@ export async function authProviderLogin(
     },
     {
       validateStatus: () => true,
-    }
+    },
   )
   return response.data
 }
 
 export async function authProviderRegister(
-  payload: Record<string, string>
+  payload: Record<string, string>,
 ): Promise<Partial<oAuthRegistered>> {
   try {
-    const response = await axios.post(
-      `${config.auth?.baseUrl}/dbconnections/signup`,
-      {
-        connection: 'Username-Password-Authentication',
-        client_id: config.auth?.clientId,
-        email: payload.email,
-        password: payload.password,
-        user_metadata: {
-          id: payload.userId,
-        },
-      }
-    )
+    const response = await axios.post(`${config.auth?.baseUrl}/dbconnections/signup`, {
+      connection: 'Username-Password-Authentication',
+      client_id: config.auth?.clientId,
+      email: payload.email,
+      password: payload.password,
+      user_metadata: {
+        id: payload.userId,
+      },
+    })
     return response.data
   } catch (err: unknown) {
     const error = err as Error & {
@@ -183,17 +177,14 @@ export async function authProviderRegister(
 }
 
 export async function authProviderChangePassword(
-  payload: Record<string, string>
+  payload: Record<string, string>,
 ): Promise<oAuthError | string> {
   try {
-    const response = await axios.post(
-      `${config.auth?.baseUrl}/dbconnections/change_password`,
-      {
-        connection: 'Username-Password-Authentication',
-        client_id: config.auth?.clientId,
-        email: payload.email,
-      }
-    )
+    const response = await axios.post(`${config.auth?.baseUrl}/dbconnections/change_password`, {
+      connection: 'Username-Password-Authentication',
+      client_id: config.auth?.clientId,
+      email: payload.email,
+    })
     return response.data
   } catch (err: unknown) {
     const error = err as Error & { response: AxiosResponse }
@@ -221,7 +212,7 @@ export async function authProviderPatch(payload: {
         headers: {
           Authorization: `Bearer ${config.auth?.manageToken}`,
         },
-      }
+      },
     )
     return response.data
   } catch (err: unknown) {

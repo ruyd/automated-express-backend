@@ -1,53 +1,19 @@
-import 'express-async-errors'
+import express from 'express'
 import config from './shared/config'
-import express, { Express, Request, Response } from 'express'
-import cors from 'cors'
-import swaggerUi from 'swagger-ui-express'
-import swaggerJsdoc from 'swagger-jsdoc'
-import db, { models } from './shared/db'
-import api from './api'
-import { errorHandler } from './shared/errors'
-import { swaggerDocModelInject } from './api/_auto/swagger'
-import { autoApiRouter } from './api/_auto/routes'
+import logger from './shared/logger'
+import { checkDatabase } from './shared/db'
+import createBackend from './app'
 ;(async () => {
-  //Initialize Models
-  await db.authenticate()
-  await db.createSchema(config.db.schema, {})
-  await db.sync({ alter: false, force: false })
+  await checkDatabase()
 
-  const app: Express = express()
-  app.use(express.json({ limit: config.jsonLimit }))
-  app.use(cors())
+  const app = createBackend()
 
-  //Auto Swagger
-  const swaggerDoc = swaggerJsdoc({
-    swaggerDefinition: config.swaggerSetup,
-    apis: ['**/api/swagger.yaml', '**/api/**/index.*s'],
-  })
-  console.info('Parsed swagger', swaggerDoc)
-  swaggerDocModelInject(models, swaggerDoc)
-  app.use(
-    '/docs',
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerDoc, {
-      swaggerOptions: {
-        persistAuthorization: true,
-      },
-    })
-  )
-
-  //Auto CRUD
-  autoApiRouter(models, api)
-
-  //Apply API
-  app.use(`/${config.prefix}`, api)
-
-  //Errors
-  app.use(errorHandler)
+  const url =
+    (process.env.BASEURL || `http://localhost:${config.port}`) + config.swaggerSetup.basePath
 
   //Start server
-  app.get('/', (req: Request, res: Response) => {
-    res.send(`<html><title>${config.swaggerSetup.info.title}</title>
+  app.get('/', (req: express.Request, res: express.Response) => {
+    res.send(`<html><title>${config.swaggerSetup.info?.title}</title>
     <body style="
       display: flex;
       align-items: center;
@@ -59,9 +25,9 @@ import { autoApiRouter } from './api/_auto/routes'
     </body></html>`)
   })
 
-  app.listen(config.port, () => {
-    console.log(
-      `⚡️[server]: Server is running at port ${config.port} with SwaggerUI Admin at ${config.swaggerSetup.basePath}`
-    )
-  })
+  app.listen(config.port, () =>
+    logger.info(
+      `⚡️[server]: Server is running at port ${config.port} with SwaggerUI Admin at ${url}`,
+    ),
+  )
 })()
