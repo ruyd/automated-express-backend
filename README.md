@@ -18,11 +18,14 @@ Automate the boilerplate stuff
 - Auto SwaggerUI Admin
 - JWT Security RS256
 - Auth0 Authentication
-- TypeScript Database Migrations with umzug
-- TypeScript Tests with jest
+- Database Migrations with umzug
+- Auto Tests with jest
 
 
 ## Setup
+- if docker is available go with: `yarn start`
+- Modify setup/db.json if not
+- `yarn dev`
 
 ### .env
 
@@ -40,5 +43,3 @@ Automate the boilerplate stuff
 1. Set Authentication > Database to: Username-Password-Authentication
 2. Create enrichAccessToken rule with code from \setup\auth0.js
 3. Set Applications > App > Advanced > Grant Types check: Password
-
-[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
