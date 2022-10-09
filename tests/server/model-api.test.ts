@@ -30,7 +30,7 @@ export function getMockValue(columnName: string, columnType: string, randomize =
     case 'UUID':
       return uuid()
     case 'TEXT':
-    case '/VARCHAR(*.)/':
+    case type.match(/VARCHAR\(\w+\)/)?.input:
       return columnName + suffix
     case 'number':
       return 1 + increment
