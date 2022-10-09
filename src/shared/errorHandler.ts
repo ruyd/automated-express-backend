@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import logger from './logger'
+import 'express-async-errors'
 
 export interface HttpErrorParams {
   message?: string
@@ -22,12 +23,7 @@ export class HttpError extends Error {
    * @param {boolean} isPublic - Whether the message should be visible to user or not.
    */
   constructor(params: HttpErrorParams = {}) {
-    const {
-      message = 'Internal server error',
-      data,
-      stack,
-      status = 500,
-    } = params
+    const { message = 'Internal server error', data, stack, status = 500 } = params
     super(message)
     this.message = message
     this.data = data
@@ -76,7 +72,7 @@ export function errorHandler(
   err: HttpError,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void {
   const response: HttpErrorResponse = {
     status: err.status,
@@ -88,7 +84,7 @@ export function errorHandler(
 
   logger.error(
     `Client with IP="${req.ip}" failed to complete request to="${req.method}" originating from="${req.originalUrl}". Status="${response.status}" Message="${err.message}"`,
-    err
+    err,
   )
 
   res.status(response.status)

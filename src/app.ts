@@ -8,14 +8,12 @@ import { applyModelsToSwaggerDoc } from './shared/model-api/swagger'
 import { registerModelApiRoutes } from './shared/model-api/routes'
 import { errorHandler } from './shared/errorHandler'
 import api from './api'
-import cors from 'cors'
 
 export default function createBackendApp(): express.Express {
   const app = express()
 
   // Basics
   app.use(express.json({ limit: config.jsonLimit }))
-  app.use(cors())
 
   app.use(
     bodyParser.urlencoded({
