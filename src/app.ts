@@ -35,7 +35,7 @@ export default function createBackendApp(): express.Express {
     config.swaggerSetup.basePath,
     swaggerUi.serve,
     swaggerUi.setup(swaggerDoc, {
-      customSiteTitle: config.swaggerSetup.info?.title,
+      customSiteTitle: swaggerDoc.info?.title,
       swaggerOptions: {
         persistAuthorization: true,
       },
