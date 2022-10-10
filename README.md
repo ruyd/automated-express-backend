@@ -2,6 +2,8 @@
 
 [![Demo](https://img.shields.io/badge/Click%20for%20Demo-HEROKU-GREEN.svg)](https://drawspace-api.herokuapp.com/docs)
 
+[![Tests](https://github.com/ruyd/automated-express-backend/actions/workflows/tests.yml/badge.svg)](https://github.com/ruyd/automated-express-backend/actions/workflows/tests.yml)
+
 NodeJS Express Starter for backends and microservices
 
 Just define your sequelize models and get a full CRUD API with SwaggerUI at runtime
