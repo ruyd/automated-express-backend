@@ -19,13 +19,12 @@ Automate the boilerplate stuff
 - JWT Security RS256
 - Auth0 Authentication
 - Database Migrations with umzug
-- Auto Tests with jest
+- Auto Tests with jest and Docker
 
 
 ## Setup
 - if docker is available go with: `yarn start`
-- Modify setup/db.json if not
-- `yarn dev`
+- Modify setup/db.json if not and `yarn dev`
 
 ### .env
 
