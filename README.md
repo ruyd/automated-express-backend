@@ -21,8 +21,8 @@ Automate the boilerplate stuff
 - JWT Security RS256
 - Auth0 Authentication
 - Database Migrations with umzug
-- Auto Debuggable Tests with jest and Docker
-- VSCode launchers
+- Auto Tests with jest and Docker
+- VSCode launchers, debugging server and tests
 
 
 ## Setup
