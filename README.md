@@ -6,7 +6,7 @@
 
 NodeJS Express Starter for backends and microservices
 
-Just define your sequelize models and get a full CRUD API with SwaggerUI at runtime
+Easier than GraphQL, customizable and concise, Model-API generic functions for sequelize
 
 Automate the boilerplate stuff
 
