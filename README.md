@@ -15,13 +15,14 @@ Automate the boilerplate stuff
 ## Developer Experience
 
 - Sequelize
-- Async Errors
 - Auto CRUD API Routes for Models
 - Auto SwaggerUI Admin
+- Non-invasive, allows regular/custom backend work
 - JWT Security RS256
 - Auth0 Authentication
 - Database Migrations with umzug
-- Auto Tests with jest and Docker
+- Auto Debuggable Tests with jest and Docker
+- VSCode launchers
 
 
 ## Setup
