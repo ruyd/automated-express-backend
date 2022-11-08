@@ -7,7 +7,7 @@ const router = express.Router()
 
 /**
  * @swagger
- * /gallery
+ * /gallery:
  *   get:
  */
 router.get('/gallery', async (req, res) => {

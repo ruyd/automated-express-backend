@@ -1,5 +1,6 @@
 import express from 'express'
 import bodyParser from 'body-parser'
+import cors from 'cors'
 import swaggerUi from 'swagger-ui-express'
 import swaggerJsdoc, { OAS3Definition } from 'swagger-jsdoc'
 import config from './shared/config'
@@ -20,6 +21,8 @@ export default function createBackendApp(): express.Express {
       extended: true,
     }),
   )
+
+  app.use(cors())
 
   app.use(errorHandler)
 
