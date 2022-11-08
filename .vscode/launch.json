@@ -6,7 +6,7 @@
   "configurations": [
     {
       "type": "node-terminal",
-      "name": "yarn dev",
+      "name": "dev",
       "command": "yarn dev",
       "request": "launch",
       "cwd": "${workspaceRoot}"
