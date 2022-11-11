@@ -23,7 +23,7 @@ Automate the boilerplate stuff
 - Database Migrations with umzug
 - Auto Tests with jest and Docker
 - VSCode launchers, debugging server and tests
-- Webpack
+- Webpack with Fast Hot Reload
 
 
 ## Setup
