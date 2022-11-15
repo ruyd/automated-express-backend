@@ -6,6 +6,7 @@ const nodeExternals = require('webpack-node-externals')
 const NodePolyfillPlugin = require('node-polyfill-webpack-plugin')
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin')
 const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin')
+const dotenv = require('dotenv').config()
 
 const createEnvironmentHash = require('./tools/createEnvironmentHash')
 const getClientEnvironment = require('./tools/env')
@@ -35,9 +36,7 @@ module.exports = {
   plugins: [
     new NodePolyfillPlugin(),
     new webpack.DefinePlugin({
-      'process.env': {
-        NODE_ENV: JSON.stringify(mode),
-      },
+      'process.env': JSON.stringify({ ...dotenv?.parsed, NODE_ENV: mode }),
     }),
     new ForkTsCheckerWebpackPlugin(),
   ],
