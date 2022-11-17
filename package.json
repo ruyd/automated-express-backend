@@ -7,11 +7,11 @@
   "scripts": {
     "docker": "docker-compose up --wait",
     "migrator": "yarn ts-node src/shared/db/migrator.ts",
-    "build": "yarn webpack --progress",
-    "watch": "yarn webpack watch",
+    "build": "yarn webpack",
+    "watch": "NODE_ENV=development yarn webpack watch",
     "mon": "yarn nodemon -r tsconfig-paths/register -q src/index.ts",
-    "concurrently": "concurrently \"NODE_ENV=development yarn watch\" \"yarn mon\"",
-    "dev": "yarn install && yarn docker && NODE_ENV=development yarn build && yarn concurrently",
+    "concu": "concurrently \"yarn watch\" \"yarn mon\"",
+    "dev": "yarn install && yarn docker && yarn tsc --build && yarn concu",
     "start": "yarn run dev",
     "test": "yarn jest",
     "clean": "rm -rf node_modules yarn.lock dist build"
