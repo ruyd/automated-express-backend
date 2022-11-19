@@ -7,6 +7,14 @@ export interface AppAccessToken extends JwtPayload {
   roles: string[]
 }
 
+export interface IdentityToken extends JwtPayload {
+  picture?: string | undefined
+  email: string
+  name: string
+  given_name: string
+  family_name: string
+}
+
 export interface Entity {
   createdAt?: Date
   updatedAt?: Date
