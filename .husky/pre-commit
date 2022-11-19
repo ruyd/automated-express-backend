@@ -1,4 +1,8 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
+# relax or restrict
+# yarn tsc --build
+# yarn build
+# yarn lint
 yarn test
