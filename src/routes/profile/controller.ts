@@ -5,13 +5,16 @@ import {
   authProviderRegister,
   ReqWithAuth,
   authProviderChangePassword,
+  lazyLoadManagementToken,
+  authProviderPatch,
+  decodeToken,
 } from '../../shared/auth'
 import { createOrUpdate } from '../../shared/model-api/controller'
 import { UserModel } from '../../shared/types/user'
-import { AppAccessToken } from '../../shared/types'
-import { getPictureMock } from '../..//shared/util'
+import { AppAccessToken, getPictureMock, IdentityToken } from '@shared/lib'
 import { v4 as uuid } from 'uuid'
 import { decode } from 'jsonwebtoken'
+import logger from '../../shared/logger'
 
 export async function register(req: express.Request, res: express.Response) {
   const payload = req.body
@@ -62,6 +65,75 @@ export async function login(req: express.Request, res: express.Response) {
   res.json({
     token: response.access_token,
     user,
+  })
+}
+
+/**
+ * Create Email DB record if it doesn't exist
+ * Update profile metadata with userId
+ * Reissue access_token with userId (or client?)
+ * auth0-node.socialLogin() better?
+ * @param req access_token, id_token
+ */
+export async function social(req: express.Request, res: express.Response) {
+  logger.info('Social login', req.body)
+  const { idToken, accessToken } = req.body
+  //validate tocket instead of just decode?
+  const access = decodeToken(accessToken)
+  const decoded = decode(idToken) as IdentityToken
+  const { email } = decoded
+
+  let user = (
+    await UserModel.findOne({
+      where: { email },
+    })
+  )?.get()
+
+  if (!user) {
+    user = await createOrUpdate(UserModel, { email, userId: uuid() })
+  }
+
+  if (!user) {
+    throw new Error('Database User could not be found or created')
+  }
+
+  if (!access.sub) {
+    throw new Error('No sub in access token')
+  }
+
+  let renew = false
+  if (access.userId !== user.userId) {
+    logger.info('Updating metadata userId', access.userId, user.userId)
+    await lazyLoadManagementToken()
+    const response = await authProviderPatch(access.sub, {
+      connection: 'google-oauth2',
+      user_metadata: {
+        id: user.userId,
+      },
+    })
+    logger.info('success' + JSON.stringify(response))
+    renew = true
+  }
+
+  res.json({
+    user,
+    token: accessToken,
+    renew,
+  })
+}
+
+export async function socialCheck(req: express.Request, res: express.Response) {
+  logger.info('Social Email Check', req.body)
+  const { token } = req.body
+  const decoded = decode(token) as IdentityToken
+  const { email } = decoded
+  const user = (
+    await UserModel.findOne({
+      where: { email },
+    })
+  )?.get()
+  res.json({
+    userId: user?.userId,
   })
 }
 

@@ -1,6 +1,6 @@
 import express from 'express'
 import { tokenCheckWare } from '../../shared/auth'
-import { edit, login, register } from './controller'
+import { edit, forgot, login, register, social, socialCheck } from './controller'
 
 const router = express.Router()
 
@@ -72,18 +72,28 @@ router.post('/profile/register', register)
 
 router.post('/profile/edit', tokenCheckWare, edit)
 
-router.post('/profile/oauthcallback', (req, res) => {
-  const { oauthToken: token } = req.body
-
-  res.json({ token })
-})
-
-router.post('/profile/logoff', tokenCheckWare, (req, res) => {
+router.post('/profile/logoff', (_req, res) => {
   res.json({ success: true })
 })
 
-router.post('/profile/revoke', (req, res) => {
-  res.json({ success: true })
-})
+router.post('/profile/forgot', forgot)
+
+/**
+ * @swagger
+ * /profile/social:
+ *  post:
+ *    tags:
+ *      - profile
+ */
+router.post('/profile/social', social)
+
+/**
+ * @swagger
+ * /profile/social/check:
+ *  post:
+ *    tags:
+ *      - profile
+ */
+router.post('/profile/social/check', socialCheck)
 
 export default router

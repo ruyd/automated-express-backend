@@ -3,9 +3,12 @@ import express from 'express'
 import { expressjwt } from 'express-jwt'
 import jwksRsa from 'jwks-rsa'
 import jwt from 'jsonwebtoken'
-import config from './config'
-import { AppAccessToken } from './types'
-import { ModelConfig } from './db'
+import config from '../config'
+import { AppAccessToken } from '../types'
+import { ModelConfig } from '../db'
+import logger from '../logger'
+
+// /import { HttpUnauthorizedError } from './errorHandler'
 
 export interface oAuthError {
   error?: string
@@ -41,7 +44,7 @@ const jwkClient = jwksRsa({
 })
 
 const jwtVerify = expressjwt({
-  secret: config.tokenSecret || 'off',
+  secret: config.auth.tokenSecret || 'off',
   algorithms: ['HS256'],
 })
 
@@ -63,7 +66,10 @@ export function getAuthWare(cfg?: ModelConfig): ModelWare {
     next: express.NextFunction,
   ) {
     const { header, token } = setRequest(req, self.config)
-    if (config.auth?.algorithm === 'RS256' && header && token) {
+    const hasAuthProvider =
+      config.auth?.baseUrl && config.auth?.clientId && config.auth?.clientSecret
+
+    if (hasAuthProvider && config.auth?.algorithm === 'RS256' && header && token) {
       const result = await jwkClient.getSigningKey(header.kid)
       const key = result.getPublicKey()
       const auth = jwt.verify(token, key, {
@@ -74,6 +80,7 @@ export function getAuthWare(cfg?: ModelConfig): ModelWare {
       }
       return next()
     }
+
     return jwtVerify(req, _res, next)
   }
   return self
@@ -115,7 +122,7 @@ export function setRequest(
  * @returns
  */
 export function createToken(obj: object): string {
-  const token = jwt.sign(obj, config.tokenSecret as string)
+  const token = jwt.sign(obj, config.auth.tokenSecret as string)
   return token
 }
 
@@ -195,17 +202,18 @@ export async function authProviderChangePassword(
   }
 }
 
-export async function authProviderPatch(payload: {
-  id: string
-  email: string
-  password: string
-}): Promise<oAuthError | string> {
+export async function authProviderPatch(
+  sub: string,
+  payload: {
+    connection: string
+    user_metadata: Record<string, string>
+    [key: string]: unknown
+  },
+): Promise<oAuthError | string> {
   try {
     const response = await axios.patch(
-      `${config.auth?.baseUrl}/api/v2/users/${payload.id}`,
+      `${config.auth?.baseUrl}/api/v2/users/${sub}`,
       {
-        connection: 'Username-Password-Authentication',
-        client_id: config.auth?.clientId,
         ...payload,
       },
       {
@@ -218,8 +226,46 @@ export async function authProviderPatch(payload: {
   } catch (err: unknown) {
     const error = err as Error & { response: AxiosResponse }
     return {
-      error: error.response?.data?.name,
-      error_description: error.response?.data?.description,
+      error: error.response?.data?.error,
+      error_description: error.response?.data?.message,
     }
   }
+}
+
+export async function lazyLoadManagementToken(): Promise<boolean> {
+  if (!config.auth?.explorerId) {
+    return false
+  }
+
+  if (config.auth?.manageToken) {
+    const decoded = jwt.decode(config.auth?.manageToken) as jwt.JwtPayload
+    if (decoded.exp && decoded.exp > Date.now() / 1000) {
+      return true
+    } else {
+      logger.info('Management token expired')
+      config.auth.manageToken = undefined
+    }
+  }
+
+  logger.info('Getting management token...')
+  const response = await axios.post(
+    `${config.auth?.baseUrl}/oauth/token`,
+    {
+      client_id: config.auth.explorerId,
+      client_secret: config.auth.explorerSecret,
+      audience: config.auth.explorerAudience,
+      grant_type: 'client_credentials',
+    },
+    {
+      validateStatus: () => true,
+    },
+  )
+
+  logger.info('response' + JSON.stringify(response.data))
+
+  if (response.data.access_token) {
+    config.auth.manageToken = response.data.access_token
+  }
+
+  return true
 }

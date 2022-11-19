@@ -1,6 +1,5 @@
 export * from './models'
 export * from './user'
-export * from './user'
 import { JwtPayload } from 'jsonwebtoken'
 
 export interface AppAccessToken extends JwtPayload {

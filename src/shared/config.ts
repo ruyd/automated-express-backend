@@ -5,10 +5,12 @@ import sequelizeConfig from '../../setup/db.json'
 
 dotenv.config({})
 
+const env = process.env || {}
+
 export interface Config {
+  trace: boolean
   production: boolean
   port: number
-  tokenSecret?: string
   jsonLimit: string
   db: {
     name: string
@@ -18,12 +20,20 @@ export interface Config {
     force: boolean
     alter: boolean
   }
-  auth?: {
+  auth: {
+    tokenSecret?: string
+    tenant: string
+    domain: string
     baseUrl: string
-    clientId: string
-    clientSecret: string
+    redirectUrl: string
+    explorerAudience: string
+    explorerId: string
+    explorerSecret: string
     ruleNamespace: string
     algorithm: 'RS256' | 'HS256'
+    clientAudience: string
+    clientId?: string
+    clientSecret?: string
     manageToken?: string
   }
   swaggerSetup: Partial<OAS3Definition>
@@ -31,13 +41,13 @@ export interface Config {
 
 //rework with secrets
 const { database, host, username, password, ssl, schema } = sequelizeConfig.development
-const DB_URL = process.env.DB_URL || `postgres://${username}:${password}@${host}/${database}`
-const port = Number(process.env.PORT || 3000)
+const DB_URL = env.DB_URL || `postgres://${username}:${password}@${host}/${database}`
+const port = Number(env.PORT || 3001)
 const config: Config = {
-  production: process.env.NODE_ENV === 'production',
+  trace: false,
+  production: env.NODE_ENV === 'production',
   port,
-  tokenSecret: process.env.TOKEN_SECRET,
-  jsonLimit: process.env.JSON_LIMIT || '1mb',
+  jsonLimit: env.JSON_LIMIT || '1mb',
   db: {
     force: false,
     alter: false,
@@ -47,9 +57,17 @@ const config: Config = {
     ssl,
   },
   auth: {
-    baseUrl: process.env.AUTH_BASE_URL || '',
-    clientId: process.env.AUTH_CLIENT_ID || '',
-    clientSecret: process.env.AUTH_CLIENT_SECRET || '',
+    tokenSecret: env.TOKEN_SECRET || 'blank',
+    tenant: env.AUTH_TENANT || 'Set AUTH_TENANT in .env',
+    domain: `${env.AUTH_TENANT}.auth0.com`,
+    baseUrl: `https://${env.AUTH_TENANT}.auth0.com`,
+    redirectUrl: env.AUTH_REDIRECT_URL || 'http://localhost:3000/callback',
+    explorerAudience: `https://${env.AUTH_TENANT}.auth0.com/api/v2/`,
+    explorerId: env.AUTH_EXPLORER_ID || '',
+    explorerSecret: env.AUTH_EXPLORER_SECRET || '',
+    clientAudience: env.AUTH_AUDIENCE || 'https://backend',
+    clientId: env.AUTH_CLIENT_ID || '',
+    clientSecret: env.AUTH_CLIENT_SECRET || '',
     ruleNamespace: 'https://',
     algorithm: 'RS256',
   },
@@ -67,6 +85,18 @@ const config: Config = {
     ],
     basePath: '/docs',
   },
+}
+
+export function getClientConfig() {
+  return {
+    auth: {
+      domain: config.auth.domain,
+      baseUrl: config.auth.baseUrl,
+      audience: config.auth.clientAudience,
+      clientId: config.auth.clientId,
+      redirectUrl: config.auth.redirectUrl,
+    },
+  }
 }
 
 export default config

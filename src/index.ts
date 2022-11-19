@@ -27,7 +27,7 @@ import createBackendApp from './app'
 
   app.listen(config.port, () =>
     logger.info(
-      `⚡️[server]: Server is running at port ${config.port} with SwaggerUI Admin at ${url}`,
+      `⚡️[server]: Server is running at port ${config.port} with SwaggerUI Admin at ${url}\n`,
     ),
   )
 })()

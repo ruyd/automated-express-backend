@@ -43,6 +43,16 @@ export class HttpNotFoundError extends HttpError {
   }
 }
 
+export class HttpUnauthorizedError extends HttpError {
+  constructor(message = 'Unauthorized: please sign in', data?: unknown) {
+    super({
+      message,
+      status: 401,
+      data,
+    })
+  }
+}
+
 export class HttpForbiddenError extends HttpError {
   constructor(message = 'Forbidden error', data?: unknown) {
     super({
