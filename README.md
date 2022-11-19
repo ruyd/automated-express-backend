@@ -30,15 +30,12 @@ Automate the boilerplate stuff
 ## QuickStart
 - if docker is available go with: `yarn start`
 - Modify setup/db.json if not and `yarn dev`
+
+### Auth0
+
 - For Auth0 Automated Setup, copy sample.env to workspaces/server/.env and populate with:
   - [Create auth0 account](https://auth0.com/signup)
   - Go to Dashboard > Applications > API Explorer Application > Settings and copy settins into .env:
   - AUTH_TENANT=`tenant` domain without `tenant`.auth0.com
   - AUTH_EXPLORER_ID=`Client ID`
   - AUTH_EXPLORER_SECRET=`Client Secret`
-
-### Auth0
-
-1. Set Authentication > Database to: Username-Password-Authentication
-2. Create enrichAccessToken rule with code from \setup\auth0.js
-3. Set Applications > App > Advanced > Grant Types check: Password
