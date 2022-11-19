@@ -19,7 +19,7 @@ Automate the boilerplate stuff
 - Auto SwaggerUI Admin
 - Non-invasive, allows regular/custom backend work
 - JWT Security RS256
-- Auth0 Authentication
+- Auth0 Automatic Configuration (even Clients)
 - Database Migrations with umzug
 - Auto Tests with jest and Docker
 - VSCode launchers, debugging server and tests
@@ -27,20 +27,15 @@ Automate the boilerplate stuff
 - Git Pre-Commit Hook that run tests and block bad commits
 
 
-## Setup
+## QuickStart
 - if docker is available go with: `yarn start`
 - Modify setup/db.json if not and `yarn dev`
-
-### .env
-
-> PORT=3001<br>
-> DB_SSL=false<br>
-> DB_URL=postgres://postgres:pass@localhost:5432/xyz<br>
-> DB_SCHEMA=public<br>
-> TOKEN_SECRET=<br>
-> AUTH_BASE_URL=https://xzy.auth0.com<br>
-> AUTH_CLIENT_SECRET=<br>
-> AUTH_CLIENT_ID=<br>
+- For Auth0 Automated Setup, copy sample.env to workspaces/server/.env and populate with:
+  - [Create auth0 account](https://auth0.com/signup)
+  - Go to Dashboard > Applications > API Explorer Application > Settings and copy settins into .env:
+  - AUTH_TENANT=`tenant` domain without `tenant`.auth0.com
+  - AUTH_EXPLORER_ID=`Client ID`
+  - AUTH_EXPLORER_SECRET=`Client Secret`
 
 ### Auth0
 
