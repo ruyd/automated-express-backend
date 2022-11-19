@@ -24,6 +24,7 @@ Automate the boilerplate stuff
 - Auto Tests with jest and Docker
 - VSCode launchers, debugging server and tests
 - Webpack with Fast Hot Reload
+- Precommit Hook to check tests and linting
 
 
 ## Setup
