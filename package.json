@@ -14,7 +14,8 @@
     "dev": "yarn install && yarn docker && yarn tsc --build && yarn concu",
     "start": "yarn run dev",
     "test": "yarn jest",
-    "clean": "rm -rf node_modules yarn.lock dist build"
+    "clean": "rm -rf node_modules yarn.lock dist build",
+    "prepare": "husky install"
   },
   "dependencies": {
     "axios": "^1.1.2",
@@ -51,7 +52,9 @@
     "eslint": "^8.24.0",
     "eslint-plugin-jsdoc": "^39.3.6",
     "fork-ts-checker-webpack-plugin": "^7.2.13",
+    "husky": "^8.0.2",
     "jest": "^29.1.2",
+    "lint-staged": "^13.0.3",
     "multer": "^1.4.5-lts.1",
     "node-polyfill-webpack-plugin": "^2.0.1",
     "nodemon": "^2.0.20",
