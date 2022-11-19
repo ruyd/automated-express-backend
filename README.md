@@ -23,8 +23,8 @@ Automate the boilerplate stuff
 - Database Migrations with umzug
 - Auto Tests with jest and Docker
 - VSCode launchers, debugging server and tests
-- Webpack with Fast Hot Reload
-- Precommit Hook to check tests and linting
+- Webpack with Hot Reload and Cache
+- Git Pre-Commit Hook that run tests and block bad commits
 
 
 ## Setup
