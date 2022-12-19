@@ -1,6 +1,6 @@
 import express from 'express'
-import { listHandler } from 'src/shared/model-api/routes'
-import { UserActiveModel } from 'src/shared/types/models/user'
+import { listHandler } from '../../shared/model-api/routes'
+import { UserActiveModel } from '../../shared/types/models/user'
 import { tokenCheckWare } from '../../shared/auth'
 import { edit, forgot, login, register, social, socialCheck } from './controller'
 

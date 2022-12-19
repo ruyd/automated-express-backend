@@ -1,23 +1,15 @@
+const { pathsToModuleNameMapper } = require('ts-jest')
+const { compilerOptions } = require('./tsconfig.json')
+const paths = compilerOptions.paths || {}
+const rootPath = compilerOptions.baseUrl || '.'
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   preset: 'ts-jest',
-  verbose: true,
-  bail: true,
+  displayName: 'server',
   testEnvironment: 'node',
-  reporters: ['default', 'github-actions'],
-  collectCoverage: true,
-  collectCoverageFrom: ['src/api/**/*.ts'],
   modulePathIgnorePatterns: ['<rootDir>/build/', '<rootDir>/dist/'],
-  projects: [
-    {
-      displayName: 'server',
-      preset: 'ts-jest',
-      testMatch: ['<rootDir>/tests/server/**/*.test.ts'],
-    },
-    {
-      displayName: 'deploy',
-      preset: 'ts-jest',
-      testMatch: ['<rootDir>/tests/deploy.ts'],
-    },
-  ],
+  roots: ['<rootDir>'],
+  testMatch: ['<rootDir>/tests/**/*.ts'],
+  modulePaths: [rootPath],
+  moduleNameMapper: pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
 }

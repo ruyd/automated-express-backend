@@ -1,6 +1,6 @@
 import { Cart } from '../'
 import { DataTypes } from 'sequelize'
-import { addModel } from 'src/shared/db'
+import { addModel } from '../../db'
 
 export const CartAttributes = {
   cartId: {
