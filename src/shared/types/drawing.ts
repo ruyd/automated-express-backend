@@ -1,8 +1,5 @@
-import { DataTypes } from 'sequelize'
-import { UserModel } from './user'
-import { register } from '../db'
-
-import { Entity, User } from '.'
+import { Entity } from '.'
+import { User } from './user'
 
 export enum ActionType {
   Open = 0,
@@ -29,18 +26,21 @@ export interface DrawAction {
 }
 
 export interface Drawing extends Entity {
-  id?: string
+  drawingId?: string
   userId?: string
   name: string
   history: DrawAction[]
   thumbnail?: string
   private?: boolean
+  sell?: boolean
+  price?: number
+  hits?: number
   user?: User
 }
 
 // might be better to add up all open closes hmm
 export function getTimeSpent(d: Drawing): number {
-  if (d.history.length < 2) {
+  if (!d?.history || d.history?.length < 2) {
     return 0
   }
   const first = d.history[0].ts as number
@@ -56,33 +56,3 @@ export function getDuration(d: Drawing) {
   const rem = secs % 60
   return `${hours}h:${mins}m:${rem}s`
 }
-
-export const DrawingModel = register<Drawing>(
-  'drawing',
-  {
-    id: {
-      type: DataTypes.UUID,
-      primaryKey: true,
-      defaultValue: DataTypes.UUIDV4,
-    },
-    userId: {
-      type: DataTypes.UUID,
-    },
-    name: {
-      type: DataTypes.STRING,
-    },
-    history: {
-      type: DataTypes.JSONB,
-    },
-    thumbnail: {
-      type: DataTypes.TEXT,
-    },
-  },
-  true,
-)
-
-DrawingModel.hasOne(UserModel, {
-  as: 'user',
-  foreignKey: 'userId',
-  sourceKey: 'userId',
-})

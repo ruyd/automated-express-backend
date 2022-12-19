@@ -1,17 +1,21 @@
 import express from 'express'
-import config from './shared/config'
+import { createServer } from 'http'
+import { createServer as createServerHttps } from 'https'
+import config, { canStart } from './shared/config'
 import logger from './shared/logger'
-import { checkDatabase } from './shared/db'
 import createBackendApp from './app'
-;(async () => {
-  await checkDatabase()
+import { registerSocket } from './shared/socket'
+;(() => {
+  if (!canStart()) {
+    const m = 'No PORT and/or DB_URL specified: Shutting down - Environment variables undefined'
+    logger.error(m)
+    throw new Error(m)
+  }
 
   const app = createBackendApp()
+  const url = config.backendBaseUrl + config.swaggerSetup.basePath
 
-  const url =
-    (process.env.BASEURL || `http://localhost:${config.port}`) + config.swaggerSetup.basePath
-
-  //Start server
+  // Homepage
   app.get('/', (req: express.Request, res: express.Response) => {
     res.send(`<html><title>${config.swaggerSetup.info?.title}</title>
     <body style="
@@ -25,7 +29,11 @@ import createBackendApp from './app'
     </body></html>`)
   })
 
-  app.listen(config.port, () =>
+  // Start server
+  const server = config.certFile ? createServerHttps(app) : createServer(app)
+  registerSocket(server)
+
+  server.listen(config.port, () =>
     logger.info(
       `⚡️[server]: Server is running at port ${config.port} with SwaggerUI Admin at ${url}\n`,
     ),

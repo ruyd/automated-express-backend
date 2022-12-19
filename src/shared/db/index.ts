@@ -1,4 +1,12 @@
-import { Attributes, Model, ModelAttributes, ModelOptions, ModelStatic, Sequelize } from 'sequelize'
+import {
+  Attributes,
+  Model,
+  ModelAttributeColumnOptions,
+  ModelAttributes,
+  ModelOptions,
+  ModelStatic,
+  Sequelize,
+} from 'sequelize'
 import migrator from './migrator'
 import config from '../config'
 import logger from '../logger'
@@ -7,24 +15,52 @@ export const commonOptions: ModelOptions = {
   timestamps: true,
   underscored: true,
 }
+export interface Join {
+  relation: 'belongsTo' | 'hasOne' | 'hasMany' | 'belongsToMany'
+  model: ModelStatic<Model>
+  as: string
+  foreignKey: string
+}
 
-export interface ModelConfig<M extends Model = Model> {
+export interface EntityConfig<M extends Model = Model> {
   name: string
   attributes: ModelAttributes<M, Attributes<M>>
   roles?: string[]
-  unsecureRead?: boolean
-  unsecure?: boolean
+  publicRead?: boolean
+  publicWrite?: boolean
+  model?: ModelStatic<M>
+  joins?: Join[]
+}
+
+export function sortEntities(a: EntityConfig, b: EntityConfig): number {
+  const primaryKeysA = Object.keys(a.attributes).filter(
+    key => (a.attributes[key] as ModelAttributeColumnOptions).primaryKey,
+  )
+  const primaryKeysB = Object.keys(b.attributes).filter(
+    key => (b.attributes[key] as ModelAttributeColumnOptions).primaryKey,
+  )
+  if (primaryKeysA.some(key => b.attributes[key])) {
+    return -1
+  }
+  if (primaryKeysB.some(key => a.attributes[key])) {
+    return 1
+  }
+  return 0
 }
 
 export class Connection {
-  public static models: ModelStatic<Model>[]
-  public static entities: ModelConfig[]
+  public static entities: EntityConfig[] = []
   public static db: Sequelize
-  constructor() {
-    Connection.models = []
-    Connection.entities = []
+  static initialized = false
+  static init() {
+    const checkRuntime = config
+    if (!checkRuntime) {
+      throw new Error(
+        'Connection Class cannot read config, undefined variable - check for cyclic dependency',
+      )
+    }
     Connection.db = new Sequelize(config.db.url, {
-      logging: sql => logger.info(`${sql}\n`),
+      logging: sql => (config.db.trace ? logger.info(`${sql}\n`) : undefined),
       ssl: !!config.db.ssl,
       dialectOptions: config.db.ssl
         ? {
@@ -36,39 +72,105 @@ export class Connection {
           }
         : {},
     })
+    Connection.initModels()
+    Connection.initialized = true
+  }
+
+  static getAssociations(name: string) {
+    const entity = Connection.entities.find(e => e.name == name)
+    if (!entity) {
+      throw new Error(`Entity ${name} not found`)
+    }
+    const primaryKeys = Object.keys(entity.attributes).filter(
+      key => (entity.attributes[key] as ModelAttributeColumnOptions).primaryKey,
+    )
+    const others = Connection.entities.filter(e => e.name !== name)
+    const associations = others.filter(related => primaryKeys.some(key => related.attributes[key]))
+    return associations
+  }
+  static initModels() {
+    const sorted = Connection.entities.sort(sortEntities)
+    for (const entity of sorted) {
+      const scopedOptions = { ...commonOptions, sequelize: Connection.db, modelName: entity.name }
+      if (!entity.model) {
+        logger.error(`Model ${entity.name} not found`)
+        continue
+      }
+      entity.model.init(entity.attributes, scopedOptions)
+    }
+    for (const entity of sorted) {
+      Connection.initJoins(entity)
+    }
+  }
+  static initJoins(entity: EntityConfig) {
+    if (!entity?.model) {
+      return
+    }
+    // Passed joins
+    for (const join of entity.joins || []) {
+      entity.model[join.relation](join.model, {
+        through: join.model,
+        as: join.as as string,
+        foreignKey: join.foreignKey as string,
+      })
+    }
+    // Detect joins based on column names
+    const otherModels = Connection.entities.filter(e => e.name !== entity.name)
+    for (const related of otherModels) {
+      if (related.model?.name === 'model') {
+        throw new Error('model not initialized for' + related.name)
+      }
+      const relatedColumns = Object.keys(related.attributes).filter(
+        key => (related.attributes[key] as ModelAttributeColumnOptions).primaryKey,
+      )
+      for (const relatedColumnPk of relatedColumns) {
+        if (relatedColumnPk.endsWith('Id') && entity.attributes[relatedColumnPk]) {
+          entity.model.belongsTo(related.model as ModelStatic<Model>, {
+            foreignKey: relatedColumnPk,
+            onDelete: 'CASCADE',
+          })
+          const propName = entity.model.tableName.replace(related.model?.name + '_', '')
+          related.model?.hasMany(entity.model, {
+            foreignKey: relatedColumnPk,
+            as: propName,
+          })
+        }
+      }
+    }
   }
 }
 
-export const connection = new Connection()
-
 /**
- * Register defines db model and configures CRUD endpoints
+ * Deferred model registration for
+ * sequelize and model-api endpoints
  *
  * @param name - table name
  * @param attributes - columns definitions
- * @param unsecureRead - Set GET and LIST public (no token needed)
  * @param roles - restrict to roles like Admin
- * @returns
+ * @param publicRead - Set GET and LIST public (no token needed)
+ * @param publicWrite - POST, PUT, PATCH (no token needed)
+ * @returns Typed model class reference with methods/utilities
  */
-export function register<T extends object>(
+export function addModel<T extends object>(
   name: string,
   attributes: ModelAttributes<Model<T>, Attributes<Model<T>>>,
-  unsecureRead?: boolean,
+  joins?: Join[],
   roles?: string[],
+  publicRead?: boolean,
+  publicWrite?: boolean,
 ): ModelStatic<Model<T, T>> {
-  const cfg = {
+  const model = class extends Model {}
+  const cfg: EntityConfig = {
     name,
     attributes,
-    unsecureRead,
+    joins,
     roles,
+    model,
+    publicRead,
+    publicWrite,
   }
   Connection.entities.push(cfg)
-  const model = Connection.db.define<Model<T>>(cfg.name, cfg.attributes, commonOptions)
-  const existing = Connection.models.find(m => m.name === model.name)
-  if (!existing) {
-    Connection.models.push(model)
-  }
-  logger.info(`Registered model ${model.name}`, Connection.models)
+  logger.info(`Registered model ${name}`)
   return model
 }
 
@@ -109,15 +211,22 @@ export async function checkMigrations(): Promise<boolean> {
 
 export async function checkDatabase(): Promise<boolean> {
   try {
-    logger.info(
-      `Checking database models: 
-        ${Connection.models.map(a => a.name).join(', ')}`,
-    )
+    logger.info('Connecting to database...')
+    config.db.models = Connection.entities.map(m => m.name)
     await Connection.db.authenticate()
-    await Connection.db.sync({ alter: config.db.alter, force: config.db.force })
+
+    if (config.db.sync) {
+      logger.info(
+        `Database models: 
+        ${Connection.entities.map(a => a.name).join(', ')}`,
+      )
+      await Connection.db.sync({ alter: config.db.alter, force: config.db.force })
+    }
+
     return true
   } catch (e: unknown) {
     const msg = (e as Error)?.message
+    logger.error('Unable to connect to the database:', e)
     if (msg?.includes('does not exist')) {
       const result = await createDatabase()
       return result
@@ -126,9 +235,8 @@ export async function checkDatabase(): Promise<boolean> {
       const result = await checkMigrations()
       return result
     }
-    logger.error('Unable to connect to the database:', e)
   }
   return false
 }
 
-export default connection
+export default Connection

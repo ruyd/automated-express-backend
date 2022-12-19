@@ -1,8 +1,8 @@
 import express from 'express'
 import { Model, ModelStatic, Order } from 'sequelize/types'
-import { Connection, ModelConfig } from '../db'
-import { getAuthWare, ReqWithAuth } from '../auth'
-import { createOrUpdate, getIfExists, list } from './controller'
+import { EntityConfig } from '../db'
+import { EnrichedRequest } from '../types'
+import { createOrUpdate, getIfExists, gridPatch, gridDelete, list } from './controller'
 import logger from '../logger'
 
 export interface modelApiConfig {
@@ -12,7 +12,7 @@ export interface modelApiConfig {
 
 export const modelApiConfig: modelApiConfig = {
   userIdColumn: 'userId',
-  getAuthUserId: req => (req as ReqWithAuth).auth?.userId,
+  getAuthUserId: req => (req as EnrichedRequest).auth?.userId,
 }
 
 /**
@@ -41,8 +41,45 @@ export async function saveHandler(this: typeof Model, req: express.Request, res:
   res.json(result)
 }
 
+export async function gridPatchHandler(
+  this: typeof Model,
+  req: express.Request,
+  res: express.Response,
+) {
+  if (!this) {
+    throw new Error('this is not defined')
+  }
+  if (!req.body) {
+    res.status(400).send('Request body is missing')
+  }
+  const model = this as ModelStatic<Model>
+  const authId = modelApiConfig.getAuthUserId(req)
+  if (
+    authId &&
+    Object.keys(model.getAttributes()).includes(modelApiConfig.userIdColumn) &&
+    !req.body[modelApiConfig.userIdColumn]
+  ) {
+    req.body[modelApiConfig.userIdColumn] = authId
+  }
+  const result = await gridPatch(model, req.body)
+  res.json(result)
+}
+
+export async function gridDeleteHandler(
+  this: ModelStatic<Model>,
+  req: express.Request,
+  res: express.Response,
+) {
+  if (!this) {
+    throw new Error('this is not defined')
+  }
+  const model = this as ModelStatic<Model>
+  const result = await gridDelete(model, req.body)
+  res.json(result)
+}
+
 export async function getUserRelatedRecord(r: express.Request, model: ModelStatic<Model>) {
-  const req = r as ReqWithAuth
+  const req = r as EnrichedRequest
   const authId = modelApiConfig.getAuthUserId(req)
   const instance = await getIfExists(model, req.params.id)
   if (authId && Object.keys(model.getAttributes()).includes(modelApiConfig.userIdColumn)) {
@@ -92,7 +129,11 @@ export async function getHandler(this: typeof Model, req: express.Request, res: 
  * @param req
  * @param res
  */
-export async function listHandler(this: typeof Model, req: express.Request, res: express.Response) {
+export async function listHandler(
+  this: ModelStatic<Model>,
+  req: express.Request,
+  res: express.Response,
+) {
   if (!this) {
     throw new Error('this is not defined')
   }
@@ -132,21 +173,16 @@ export async function listHandler(this: typeof Model, req: express.Request, res:
  * Might need options for any model to exclude certain methods/auth
  * @param models - array of sequelize models
  * @param router - express router
- * @param authMiddleware - token check middleware
  **/
-export function registerModelApiRoutes(models: ModelStatic<Model>[], router: express.Router): void {
-  for (const model of models) {
-    const cfg = Connection.entities.find(m => m.name === model.name) as ModelConfig
-    const authCheck = getAuthWare(cfg).authWare
-    //explicitly applying auth to routes, it might be better to have a global middleware
-    const unsecure: express.Handler = (_r, _p, n) => n()
-    const readCheck = cfg.unsecure || cfg.unsecureRead ? unsecure : authCheck
-    const writeCheck = cfg.unsecure ? unsecure : authCheck
-
+export function registerModelApiRoutes(entities: EntityConfig[], router: express.Router): void {
+  for (const cfg of entities) {
+    const model = cfg.model as ModelStatic<Model>
     const prefix = model.name.toLowerCase()
-    router.get(`/${prefix}`, readCheck, listHandler.bind(model))
-    router.get(`/${prefix}/:id`, readCheck, getHandler.bind(model))
-    router.post(`/${prefix}`, writeCheck, saveHandler.bind(model))
-    router.delete(`/${prefix}/:id`, writeCheck, deleteHandler.bind(model))
+    router.get(`/${prefix}`, listHandler.bind(model))
+    router.get(`/${prefix}/:id`, getHandler.bind(model))
+    router.post(`/${prefix}`, saveHandler.bind(model))
+    router.delete(`/${prefix}/:id`, deleteHandler.bind(model))
+    router.patch(`/${prefix}`, gridPatchHandler.bind(model))
+    router.delete(`/${prefix}`, gridDeleteHandler.bind(model))
   }
 }

@@ -1,6 +1,8 @@
-import { Model, DataTypes } from 'sequelize'
 import { Entity } from '.'
-import { register } from '../db'
+
+export interface UserPreferences {
+  [key: string]: unknown
+}
 
 export interface User extends Entity {
   userId: string
@@ -8,27 +10,42 @@ export interface User extends Entity {
   firstName?: string
   lastName?: string
   picture?: string
-}
-export type UserInstance = Model<User>
-
-export const UserAttributes = {
-  userId: {
-    type: DataTypes.UUID,
-    primaryKey: true,
-    defaultValue: DataTypes.UUIDV4,
-  },
-  firstName: {
-    type: DataTypes.STRING,
-  },
-  lastName: {
-    type: DataTypes.STRING,
-  },
-  email: {
-    type: DataTypes.STRING,
-  },
-  picture: {
-    type: DataTypes.STRING,
-  },
+  banned?: boolean
+  status?: number
+  preferences?: UserPreferences
+  loginCount?: number
+  lastLogin?: Date
+  roles?: string[]
 }
 
-export const UserModel = register<User>('user', UserAttributes)
+export interface Address extends Entity {
+  addressId: string
+  userId: string
+  name: string
+  address1: string
+  address2?: string
+  city: string
+  state: string
+  zip: string
+  country: string
+  phone: string
+  default?: boolean
+}
+
+export interface PaymentMethod extends Entity {
+  paymentMethodId: string
+  userId: string
+  name: string
+  type: string
+  last4: string
+  expMonth: number
+  expYear: number
+  default?: boolean
+}
+
+export interface UserActive {
+  socketId: string
+  userId: string
+  ip?: string
+  userAgent?: string
+}

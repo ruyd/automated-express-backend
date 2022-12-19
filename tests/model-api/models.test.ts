@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, expect, test } from '@jest/globals'
-import { checkDatabase, Connection } from '../../src/shared/db'
+import { checkDatabase, Connection, sortEntities } from '../../src/shared/db'
 import createBackend from '../../src/app'
 import { ModelStatic, Model } from 'sequelize'
 import { v4 as uuid } from 'uuid'
@@ -22,10 +23,17 @@ const conversions: Record<string, string> = {
 
 const excluded = ['createdAt', 'updatedAt', 'deletedAt']
 
+export function getRandomInt(min: number, max: number) {
+  min = Math.ceil(min)
+  max = Math.floor(max)
+  return Math.floor(Math.random() * (max - min) + min)
+}
+
 export function getMockValue(columnName: string, columnType: string, randomize = false) {
   const type = conversions[columnType] || columnType
   const suffix = randomize ? Math.random() : ''
-  const increment = randomize ? Math.random() : 0
+  const increment = randomize ? getRandomInt(1, 1000000) : 0
+  const [, scale] = type.match(/\d+/g) || [10, 2]
   switch (type) {
     case 'UUID':
       return uuid()
@@ -34,6 +42,8 @@ export function getMockValue(columnName: string, columnType: string, randomize =
       return columnName + suffix
     case 'number':
       return 1 + increment
+    case type.match(/DECIMAL\(?.*\)?/)?.input:
+      return (1 + increment).toFixed(scale as number) + ''
     case 'BOOLEAN':
       return true
     case 'date':
@@ -50,20 +60,19 @@ export function getMockValue(columnName: string, columnType: string, randomize =
   }
 }
 
-export function getPopulatedModel(model: ModelStatic<Model>, keys: Record<string, unknown>) {
-  console.log(keys)
+export function getPopulatedModel(model: ModelStatic<Model>, cachedKeys: Record<string, unknown>) {
+  console.log(cachedKeys)
   const columns = Object.entries(model.getAttributes()).filter(
     ([name]) => !excluded.includes(name),
   ) as [[string, { type: string; allowNull: boolean }]]
   const mock: { [key: string]: unknown } = {}
   for (const [name, attribute] of columns) {
     mock[name] = getMockValue(name, attribute.type.toString())
-    if (model.primaryKeyAttribute === name && !keys[model.name]) {
-      keys[model.name] = mock[name]
+    if (model.primaryKeyAttribute === name && !cachedKeys[name]) {
+      cachedKeys[name] = mock[name]
+    } else if (cachedKeys[name]) {
+      mock[name] = cachedKeys[name]
     }
-  }
-  for (const association in model.associations) {
-    mock[model.associations[association].foreignKey] = keys[association]
   }
   return mock
 }
@@ -79,32 +88,53 @@ export function toMatchObjectExceptTimestamps(
   }
 }
 
-describe('integrity check', () => {
-  test('sync', async () => {
-    const seq = await checkDatabase()
-    expect(seq).toBeTruthy()
-
-    // If data loss is no big deal, we can use sync() to update schema automatically
-    // sequelize.sync({ force: true, match: /_test$/ });
-  })
+afterAll(() => {
+  Connection.db.close()
 })
 
-describe('model-api', () => {
-  beforeAll(() => {
-    createBackend()
+describe('Entity CRUD', () => {
+  const app = createBackend()
+  test('init', async () => {
+    const results = await app.onStartupCompletePromise
+    for (const result of results) {
+      expect(result).toBeTruthy()
+    }
   })
 
-  const mocks = []
+  const sorted = Connection.entities.sort(sortEntities)
+  const mocks = {} as Record<string, { [key: string]: unknown }>
   const keys = {} as Record<string, string>
-  for (const model of Connection.models) {
+  for (const entity of sorted) {
+    const model = entity.model
+    if (!model) {
+      throw new Error('No model found for ' + entity.name)
+    }
+    if (model.name === 'model') {
+      throw new Error('Model init() not yet run' + entity.name)
+    }
     const mock = getPopulatedModel(model, keys)
-    console.info('Generated Data: ', model.name, mock)
-    mocks.push(mock)
+    console.info('Generated Mock Data for: ', model.name)
+    mocks[model.name] = mock
     const primaryKeyId = mock[model.primaryKeyAttribute] as string
-
     test(`mock ${model.name}`, async () => {
       expect(primaryKeyId).toBeTruthy()
     })
+  }
+
+  console.log(
+    'ready: ',
+    sorted.map(e => e.name),
+    keys,
+    mocks,
+  )
+
+  for (const entity of sorted) {
+    const model = entity.model as ModelStatic<Model>
+    const mock = mocks[model.name]
+    const primaryKeyId = mock[model.primaryKeyAttribute] as string
+    if (!model) {
+      throw new Error('No model found for ' + entity.name)
+    }
 
     test(`create ${model.name}`, async () => {
       const result = await createOrUpdate(model, mock)
@@ -138,8 +168,10 @@ describe('model-api', () => {
   }
 
   //loop models in reverse order
-  for (const model of Connection.models.reverse()) {
-    const mock = mocks.pop()
+  const reversed = [...sorted].reverse()
+  for (const entity of reversed) {
+    const model = entity.model as ModelStatic<Model>
+    const mock = mocks[model.name]
     if (!mock) {
       throw new Error('mock not found')
     }

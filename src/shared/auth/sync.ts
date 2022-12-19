@@ -1,17 +1,20 @@
 import axios from 'axios'
 import { lazyLoadManagementToken } from '.'
-import config from '../config'
+import { config } from '../config'
 import logger from '../logger'
 
 const readOptions = () => ({
-  headers: {
-    Authorization: `Bearer ${config.auth.manageToken || 'error not set'}`,
-  },
+  headers: {},
+  Authorization: `Bearer ${config.auth.manageToken || 'error not set'}`,
   validateStatus: () => true,
 })
 
 const log = (s: string, o?: unknown) =>
-  logger.info(`AUTH0-SYNC::${s}: ${o ? JSON.stringify(o, null, 2) : ''}`)
+  config.auth.trace
+    ? logger.info(`AUTH0-SYNC::${s}: ${o ? JSON.stringify(o, null, 2) : ''}`)
+    : () => {
+        /**/
+      }
 const get = <T>(url: string) => axios.get<T>(`${config.auth?.baseUrl}/api/v2/${url}`, readOptions())
 const post = <T>(url: string, data: unknown) =>
   axios.post<T>(`${config.auth?.baseUrl}/api/v2/${url}`, data, readOptions())
@@ -25,6 +28,10 @@ const post = <T>(url: string, data: unknown) =>
  * - Check for Rules
  */
 export async function authProviderSync(): Promise<boolean> {
+  if (!config.auth.sync || config.auth.offline) {
+    log('Auth0 Sync Off')
+    return false
+  }
   if (!config.auth.tenant || !config.auth.explorerId || !config.auth.explorerSecret) {
     log('Auth0 explorer credentials not set - skipping sync')
     // eslint-disable-next-line no-console

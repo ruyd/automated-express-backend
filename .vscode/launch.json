@@ -12,17 +12,11 @@
       "cwd": "${workspaceRoot}"
     },
     {
-      "type": "node",
+      "command": "yarn jest ${fileBasename}",
+      "name": "jest $file",
       "request": "launch",
-      "name": "Jest: current file",
-      "env": { "NODE_ENV": "test" },
-      "program": "${workspaceFolder}/node_modules/.bin/jest",
-      "args": ["${fileBasenameNoExtension}", "--config", "jest.config.js", "--bail"],
-      "console": "integratedTerminal",
-      "disableOptimisticBPs": true,
-      "windows": {
-        "program": "${workspaceFolder}/node_modules/jest/bin/jest"
-      }
+      "type": "node-terminal",
+      "preLaunchTask": "docker.start"
     }
   ]
 }

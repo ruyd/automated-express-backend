@@ -1,10 +1,9 @@
 import { DataTypes } from 'sequelize'
-import { Drawing } from './drawing'
-import { UserModel } from './user'
-import { register } from '../db'
+import { Drawing } from '../'
+import { addModel } from '../../db'
 
-export const DrawingModel = register<Drawing>('drawing', {
-  id: {
+export const DrawingModel = addModel<Drawing>('drawing', {
+  drawingId: {
     type: DataTypes.UUID,
     primaryKey: true,
     defaultValue: DataTypes.UUIDV4,
@@ -24,9 +23,10 @@ export const DrawingModel = register<Drawing>('drawing', {
   private: {
     type: DataTypes.BOOLEAN,
   },
-})
-
-DrawingModel.belongsTo(UserModel, {
-  as: 'user',
-  foreignKey: 'userId',
+  sell: {
+    type: DataTypes.BOOLEAN,
+  },
+  price: {
+    type: DataTypes.DECIMAL(10, 2),
+  },
 })

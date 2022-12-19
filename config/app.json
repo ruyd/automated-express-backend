@@ -1,0 +1,51 @@
+{
+  "development": {
+    "db": {
+      "username": "postgres",
+      "password": "postgrespass",
+      "database": "drawspace",
+      "schema": "public",
+      "host": "127.0.0.1",
+      "ssl": false,
+      "dialect": "postgres"
+    },
+    "service": {
+      "port": 3001,
+      "protocol": "http",
+      "host": "localhost"
+    }
+  },
+  "production": {
+    "db": {
+      "url": "$DB_URL",
+      "schema": "public",
+      "ssl": "$DB_SSL",
+      "dialect": "postgres"
+    },
+    "service": {
+      "port": "$PORT",
+      "protocol": "$PROTOCOL",
+      "host": "$HOST"
+    }
+  },
+  "envConcerns": [
+    "NODE_ENV",
+    "AUTH_TENANT",
+    "AUTH_CLIENT_ID",
+    "AUTH_CLIENT_SECRET",
+    "AUTH_EXPLORER_ID",
+    "AUTH_EXPLORER_SECRET",
+    "AUTH_REDIRECT_URL",
+    "AUTH_AUDIENCE",
+    "TOKEN_SECRET",
+    "DATABASE_URL",
+    "DB_URL",
+    "DB_SSL",
+    "SSL_CRT_FILE",
+    "SSL_KEY_FILE",
+    "JSON_LIMIT",
+    "HOST",
+    "HTTPS",
+    "PORT"
+  ]
+}

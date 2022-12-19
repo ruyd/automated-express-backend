@@ -1,4 +1,6 @@
 import express from 'express'
+import { listHandler } from 'src/shared/model-api/routes'
+import { UserActiveModel } from 'src/shared/types/models/user'
 import { tokenCheckWare } from '../../shared/auth'
 import { edit, forgot, login, register, social, socialCheck } from './controller'
 
@@ -95,5 +97,16 @@ router.post('/profile/social', social)
  *      - profile
  */
 router.post('/profile/social/check', socialCheck)
+
+/**
+ * @swagger
+ * /active:
+ *  get:
+ */
+router.get('/active', async (req, res) => {
+  const handler = listHandler.bind(UserActiveModel)
+  const items = await handler(req, res)
+  res.json(items)
+})
 
 export default router

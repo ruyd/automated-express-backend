@@ -12,6 +12,6 @@
     "baseUrl": ".",
     "outDir": "dist"
   },
-  "include": ["src", ".eslintrc.js", "package.json", "setup/db.json", "webpack.config.js"],
+  "include": ["src", ".eslintrc.js", "package.json", "config/*.json", "webpack.config.js"],
   "exclude": ["dist", "node_modules"]
 }

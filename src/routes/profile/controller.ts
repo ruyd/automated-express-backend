@@ -3,19 +3,19 @@ import {
   createToken,
   authProviderLogin,
   authProviderRegister,
-  ReqWithAuth,
   authProviderChangePassword,
   lazyLoadManagementToken,
   authProviderPatch,
   decodeToken,
 } from '../../shared/auth'
 import { createOrUpdate } from '../../shared/model-api/controller'
-import { UserModel } from '../../shared/types/user'
-import { getPictureMock } from '../../shared/util'
-import { AppAccessToken, IdentityToken } from '../../shared/types'
+import { UserModel } from '../../shared/types/models/user'
+import { AppAccessToken, IdentityToken, EnrichedRequest } from '../../shared/types'
 import { v4 as uuid } from 'uuid'
 import { decode } from 'jsonwebtoken'
 import logger from '../../shared/logger'
+import { config } from '../../shared/config'
+import { getPictureMock } from '../../shared/util'
 
 export async function register(req: express.Request, res: express.Response) {
   const payload = req.body
@@ -40,19 +40,32 @@ export async function register(req: express.Request, res: express.Response) {
   res.json({ token })
 }
 
+/**
+ * Login count
+ * allow offline mode
+ */
 export async function login(req: express.Request, res: express.Response) {
   const { email, password } = req.body
-
-  const response = await authProviderLogin(email, password)
-  if (response.error) {
-    throw new Error(response.error_description)
-  }
 
   let user = (
     await UserModel.findOne({
       where: { email },
     })
   )?.get()
+
+  if (config.auth.offline && user) {
+    logger.info('Auth in offline dev mode' + user?.email)
+    res.json({
+      token: createToken(user),
+      user,
+    })
+    return
+  }
+
+  const response = await authProviderLogin(email, password)
+  if (response.error) {
+    throw new Error(response.error_description)
+  }
 
   if (!user) {
     const decoded = decode(response.access_token) as AppAccessToken
@@ -82,16 +95,37 @@ export async function social(req: express.Request, res: express.Response) {
   //validate tocket instead of just decode?
   const access = decodeToken(accessToken)
   const decoded = decode(idToken) as IdentityToken
-  const { email } = decoded
+  const { email, given_name, family_name, picture } = decoded
 
-  let user = (
-    await UserModel.findOne({
-      where: { email },
-    })
-  )?.get()
+  if (!access || !email) {
+    throw new Error('Missing access token or email')
+  }
+
+  const instance = await UserModel.findOne({
+    where: { email },
+  })
+  let user = instance?.get()
+  if (user) {
+    if (
+      user.picture !== picture ||
+      user.firstName !== given_name ||
+      user.lastName !== family_name
+    ) {
+      user.picture = picture
+      user.firstName = given_name
+      user.lastName = family_name
+      instance?.update(user)
+    }
+  }
 
   if (!user) {
-    user = await createOrUpdate(UserModel, { email, userId: uuid() })
+    user = await createOrUpdate(UserModel, {
+      email,
+      userId: uuid(),
+      firstName: given_name,
+      lastName: family_name,
+      picture,
+    })
   }
 
   if (!user) {
@@ -157,7 +191,7 @@ export async function edit(req: express.Request, res: express.Response) {
   if (!payload) {
     throw new Error('Missing payload')
   }
-  const auth = (req as ReqWithAuth).auth as AppAccessToken
+  const auth = (req as EnrichedRequest).auth as AppAccessToken
   payload.userId = auth.userId
   const user = await createOrUpdate(UserModel, payload)
   res.json({ user })

@@ -1,8 +1,9 @@
 import { FindOptions, Model, ModelStatic } from 'sequelize/types'
 import { MakeNullishOptional } from 'sequelize/types/utils'
-import { PagedResult } from '../types'
+import { PagedResult, GridPatchProps } from '../../shared/types'
 import { HttpNotFoundError } from '../errorHandler'
 import logger from '../logger'
+import sequelize from 'sequelize'
 
 export async function list<T extends {}>(
   model: ModelStatic<Model<T>>,
@@ -63,5 +64,43 @@ export async function deleteIfExists<T extends {}>(
     logger.error(`${model.name}.deleteIfExists(): ${err.message}`, err)
     throw new Error(err.message)
     return false
+  }
+}
+
+export async function gridPatch<T extends object>(
+  model: ModelStatic<Model<T>>,
+  payload: GridPatchProps,
+): Promise<T> {
+  try {
+    const item = await getIfExists(model, payload.id as string)
+    item.update({
+      [payload.field]: payload.value,
+    } as T)
+    item.save()
+    return item.get()
+  } catch (e: unknown) {
+    const err = e as Error
+    logger.error(`${model.name}.gridPatch(): ${err.message}`, err)
+    throw new Error(err.message)
+  }
+}
+
+export async function gridDelete<T extends object>(
+  model: ModelStatic<Model<T>>,
+  payload: { ids: string[] },
+): Promise<{ deleted: number }> {
+  try {
+    const deleted = await model.destroy({
+      where: {
+        [model.primaryKeyAttribute]: {
+          [sequelize.Op.in]: payload.ids || [],
+        },
+      } as sequelize.WhereOptions<T>,
+    })
+    return { deleted }
+  } catch (e: unknown) {
+    const err = e as Error
+    logger.error(`${model.name}.gridPatch(): ${err.message}`, err)
+    throw new Error(err.message)
   }
 }
