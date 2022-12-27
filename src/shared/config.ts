@@ -5,6 +5,8 @@ import appConfig from '../../config/app.json'
 import logger from './logger'
 import dotenv from 'dotenv'
 
+const env = process['env']
+
 export interface Config {
   isLocalhost: boolean
   trace: boolean
@@ -23,6 +25,7 @@ export interface Config {
     trace: boolean
     name: string
     url: string
+    host: string
     schema: string
     ssl: boolean
     sync: boolean
@@ -52,22 +55,47 @@ export interface Config {
   swaggerSetup: Partial<OAS3Definition>
 }
 
+export function parseDatabaseConfig(
+  production: boolean,
+  db: { url: string | null; ssl: boolean; schema: string },
+) {
+  if (!production) {
+    return db
+  }
+  if (!db.url) {
+    throw new Error('DB_URL is not set')
+  }
+  const url = envi(db.url) as string
+  const database = url.slice(url.lastIndexOf('/') + 1)
+  const username = url.slice(url.indexOf('//') + 2, url.indexOf(':'))
+  const password = url.slice(url.indexOf(':') + 1, url.indexOf('@'))
+  const host = url.slice(url.indexOf('@') + 1, url.lastIndexOf(':'))
+  const dialect = url.slice(0, url.indexOf(':'))
+  return {
+    database,
+    host,
+    username,
+    password,
+    dialect,
+    ssl: db.ssl,
+    schema: db.schema,
+  } as Record<string, unknown>
+}
+
 export function getConfig(): Config {
   dotenv.config({})
 
-  //TODO: add secrets vault inject to process.env
-  const production = process.env.NODE_ENV === 'production'
+  const production = env.NODE_ENV === 'production'
   const serviceConfig = production ? appConfig.production : appConfig.development
-  const { database, host, username, password, ssl, schema, dialect } = serviceConfig.db as Record<
-    string,
-    unknown
-  >
-  const devConnection = `${dialect}://${username}:${password}@${host}/${database}`
-  const DB_URL = production ? process.env.DB_URL || process.env.DATABASE_URL : devConnection // covers ENV=test
+  const { database, host, username, password, ssl, schema, dialect } = parseDatabaseConfig(
+    production,
+    serviceConfig.db,
+  )
+  const databaseUrl = `${dialect}://${username}:${password}@${host}/${database}`
+  const DB_URL = env.DB_URL || databaseUrl
   const osHost = os.hostname()
   const isLocalhost = osHost.includes('local')
-  logger.info(`process.env.PORT: ${process.env.PORT} ⚡️`)
-  const port = Number(process.env.PORT) || Number(envi(serviceConfig.service.port))
+  const port = Number(env.PORT) || Number(envi(serviceConfig.service.port))
   const hostname = envi(serviceConfig.service.host) as string
   const protocol = envi(serviceConfig.service.protocol) as string
 
@@ -78,12 +106,12 @@ export function getConfig(): Config {
     hostname,
     protocol,
     backendBaseUrl: `${protocol}://${hostname}:${port}`,
-    certFile: process.env.SSL_CRT_FILE,
-    certKeyFile: process.env.SSL_KEY_FILE,
+    certFile: env.SSL_CRT_FILE,
+    certKeyFile: env.SSL_KEY_FILE,
     port,
-    jsonLimit: process.env.JSON_LIMIT || '1mb',
+    jsonLimit: env.JSON_LIMIT || '1mb',
     cors: {
-      origin: process.env.CORS_ORIGIN || '*',
+      origin: env.CORS_ORIGIN || '*',
     },
     db: {
       trace: true,
@@ -91,26 +119,27 @@ export function getConfig(): Config {
       force: false,
       alter: true,
       name: database as string,
+      host: host as string,
       url: DB_URL as string,
       schema: schema as string,
-      ssl: process.env.DB_SSL === 'true' || (ssl as boolean),
+      ssl: env.DB_SSL === 'true' || (ssl as boolean),
       models: [],
     },
     auth: {
       offline: true,
       sync: true,
       trace: false,
-      tokenSecret: process.env.TOKEN_SECRET || 'blank',
-      tenant: process.env.AUTH_TENANT || 'Set AUTH_TENANT in .env',
-      domain: `${process.env.AUTH_TENANT}.auth0.com`,
-      baseUrl: `https://${process.env.AUTH_TENANT}.auth0.com`,
-      redirectUrl: process.env.AUTH_REDIRECT_URL || 'http://localhost:3000/callback',
-      explorerAudience: `https://${process.env.AUTH_TENANT}.auth0.com/api/v2/`,
-      explorerId: process.env.AUTH_EXPLORER_ID || '',
-      explorerSecret: process.env.AUTH_EXPLORER_SECRET || '',
-      clientAudience: process.env.AUTH_AUDIENCE || 'https://backend',
-      clientId: process.env.AUTH_CLIENT_ID || '',
-      clientSecret: process.env.AUTH_CLIENT_SECRET || '',
+      tokenSecret: env.TOKEN_SECRET || 'blank',
+      tenant: env.AUTH_TENANT || 'Set AUTH_TENANT in .env',
+      domain: `${env.AUTH_TENANT}.auth0.com`,
+      baseUrl: `https://${env.AUTH_TENANT}.auth0.com`,
+      redirectUrl: env.AUTH_REDIRECT_URL || 'http://localhost:3000/callback',
+      explorerAudience: `https://${env.AUTH_TENANT}.auth0.com/api/v2/`,
+      explorerId: env.AUTH_EXPLORER_ID || '',
+      explorerSecret: env.AUTH_EXPLORER_SECRET || '',
+      clientAudience: env.AUTH_AUDIENCE || 'https://backend',
+      clientId: env.AUTH_CLIENT_ID || '',
+      clientSecret: env.AUTH_CLIENT_SECRET || '',
       ruleNamespace: 'https://',
       algorithm: 'RS256',
     },
@@ -153,30 +182,30 @@ export function getClientConfig() {
 
 export function getLimitedEnv() {
   return appConfig.envConcerns.reduce((acc: { [key: string]: unknown }, key: string) => {
-    acc[key] = process.env[key]
+    acc[key] = env[key]
     return acc
   }, {})
 }
 
 export function envi(val: unknown): unknown {
-  return typeof val === 'string' && val.startsWith('$') ? process.env[val.slice(1)] : val
+  return typeof val === 'string' && val.startsWith('$') ? env[val.slice(1)] : val
 }
 
 export function canStart() {
   logger.info(`****** READYNESS CHECK *******`)
-  logger.info(JSON.stringify(getLimitedEnv()))
-  const p = config.production ? process.env.PORT : config.port
-  const d = config.production ? process.env.DB_URL || process.env.DATABASE_URL : config.db.url
-  const result = !!p && !!d
+  // logger.info(`env.PORT: ${env.PORT} ⚡️`)
+  const p = config.port
+  const d = config.db.url
+  const result = !!p
   logger.info(`PRODUCTION: ${config.production}`)
   logger.info(`URL: ${config.backendBaseUrl}`)
   logger.info(`${p ? '✅' : '❌'} PORT: ${p ? p : 'ERROR - Missing'}`)
-  logger.info(`${d ? '✅' : '❌'} DB: ${d ? /[^/]*$/.exec(config.db.url) : 'ERROR - Missing'}`)
+  logger.info(
+    `${d ? '✅' : '❌'} DB: ${d ? `${config.db.name}@${config.db.host}` : 'ERROR - Missing'}`,
+  )
   logger.info(`**: ${result ? 'READY!' : 'HALT'}`)
   return result
 }
-export const config: Config = getConfig()
-export default config
 export class Backend {
   static config: Config = {} as Config
   static canStart = false
@@ -185,3 +214,5 @@ export class Backend {
     Backend.canStart = canStart()
   }
 }
+export const config: Config = getConfig()
+export default config

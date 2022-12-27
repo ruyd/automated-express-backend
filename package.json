@@ -13,7 +13,7 @@
     "concu": "concurrently \"yarn watch\" \"yarn mon\"",
     "dev": "yarn install && yarn docker && yarn tsc --build && yarn concu",
     "start": "yarn run dev",
-    "test": "yarn jest",
+    "test": "yarn docker && yarn jest",
     "clean": "rm -rf node_modules yarn.lock dist build",
     "prepare": "husky install"
   },

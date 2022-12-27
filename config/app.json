@@ -1,6 +1,7 @@
 {
   "development": {
     "db": {
+      "url": null,
       "username": "postgres",
       "password": "postgrespass",
       "database": "drawspace",
@@ -19,7 +20,7 @@
     "db": {
       "url": "$DB_URL",
       "schema": "public",
-      "ssl": "$DB_SSL",
+      "ssl": true,
       "dialect": "postgres"
     },
     "service": {
