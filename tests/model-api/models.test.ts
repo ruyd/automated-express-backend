@@ -96,6 +96,9 @@ describe('Entity CRUD', () => {
       expect(check).toBeTruthy()
     }
   })
+  afterAll(() => {
+    Connection.db.close()
+  })
 
   const sorted = Connection.entities.sort(sortEntities)
   const mocks = {} as Record<string, { [key: string]: unknown }>
