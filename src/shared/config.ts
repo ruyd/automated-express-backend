@@ -5,6 +5,7 @@ import appConfig from '../../config/app.json'
 import logger from './logger'
 import dotenv from 'dotenv'
 
+// Anti-webpack sorcery
 const env = process['env']
 
 export interface Config {
@@ -62,10 +63,11 @@ export function parseDatabaseConfig(
   if (!production) {
     return db
   }
-  if (!db.url) {
-    throw new Error('DB_URL is not set')
-  }
   const url = envi(db.url) as string
+  if (!url) {
+    logger.error('DB_URL is not set')
+    return db
+  }
   const database = url.slice(url.lastIndexOf('/') + 1)
   const username = url.slice(url.indexOf('//') + 2, url.indexOf(':'))
   const password = url.slice(url.indexOf(':') + 1, url.indexOf('@'))
@@ -85,7 +87,7 @@ export function parseDatabaseConfig(
 export function getConfig(): Config {
   dotenv.config({})
 
-  const production = env.NODE_ENV === 'production'
+  const production = !['development', 'test'].includes(env.NODE_ENV?.toLowerCase() || '')
   const serviceConfig = production ? appConfig.production : appConfig.development
   const { database, host, username, password, ssl, schema, dialect } = parseDatabaseConfig(
     production,
@@ -195,7 +197,7 @@ export function canStart() {
   logger.info(`****** READYNESS CHECK *******`)
   // logger.info(`env.PORT: ${env.PORT} ⚡️`)
   const p = config.port
-  const d = config.db.url
+  const d = config.db.name
   const result = !!p
   logger.info(`PRODUCTION: ${config.production}`)
   logger.info(`URL: ${config.backendBaseUrl}`)

@@ -1,6 +1,6 @@
 import express from 'express'
 import { Model, ModelStatic, Order } from 'sequelize/types'
-import { EntityConfig } from '../db'
+import Connection, { EntityConfig } from '../db'
 import { EnrichedRequest } from '../types'
 import { createOrUpdate, getIfExists, gridPatch, gridDelete, list } from './controller'
 import logger from '../logger'
@@ -175,6 +175,9 @@ export async function listHandler(
  * @param router - express router
  **/
 export function registerModelApiRoutes(entities: EntityConfig[], router: express.Router): void {
+  if (!Connection.initialized) {
+    return
+  }
   for (const cfg of entities) {
     const model = cfg.model as ModelStatic<Model>
     const prefix = model.name.toLowerCase()

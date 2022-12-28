@@ -59,12 +59,15 @@ export class Connection {
         'Connection Class cannot read config, undefined variable - check for cyclic dependency',
       )
     }
+    if (!config.db.url || !config.db.name) {
+      logger.error('DB URL not found, skipping DB init')
+      return
+    }
     Connection.db = new Sequelize(config.db.url, {
       logging: sql => (config.db.trace ? logger.info(`${sql}\n`) : undefined),
       ssl: !!config.db.ssl,
       dialectOptions: config.db.ssl
         ? {
-            dialect: 'postgresql',
             ssl: {
               require: true,
               rejectUnauthorized: false,
@@ -176,7 +179,10 @@ export function addModel<T extends object>(
 
 export async function createDatabase(): Promise<boolean> {
   logger.info('Database does not exist, creating...')
-  const root = new Sequelize(config.db.url.replace(config.db.name, 'postgres'))
+
+  const rootUrl = config.db.url.replace(config.db.name, 'postgres')
+  console.log('root', rootUrl)
+  const root = new Sequelize(rootUrl)
   const qi = root.getQueryInterface()
   try {
     await qi.createDatabase(config.db.name)
@@ -184,7 +190,7 @@ export async function createDatabase(): Promise<boolean> {
     await Connection.db.sync()
     logger.info('Tables created')
   } catch (e: unknown) {
-    logger.warn('Database creation failed', e)
+    logger.warn('Database creation failed: ' + JSON.stringify(e), e)
     return false
   }
   return true
@@ -210,6 +216,10 @@ export async function checkMigrations(): Promise<boolean> {
 }
 
 export async function checkDatabase(): Promise<boolean> {
+  if (!Connection.initialized) {
+    logger.error('DB Connection not initialized')
+    return false
+  }
   try {
     logger.info('Connecting to database...')
     config.db.models = Connection.entities.map(m => m.name)
@@ -222,7 +232,6 @@ export async function checkDatabase(): Promise<boolean> {
       )
       await Connection.db.sync({ alter: config.db.alter, force: config.db.force })
     }
-
     return true
   } catch (e: unknown) {
     const msg = (e as Error)?.message

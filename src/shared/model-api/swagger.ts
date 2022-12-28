@@ -1,6 +1,6 @@
 import { Model, ModelStatic } from 'sequelize/types'
 import { OAS3Definition, Schema } from 'swagger-jsdoc'
-import { EntityConfig } from '../db'
+import Connection, { EntityConfig } from '../db'
 
 const conversions: Record<string, string> = {
   INTEGER: 'number',
@@ -160,6 +160,9 @@ export function autoCompleteResponses(swaggerDoc: OAS3Definition) {
 }
 
 export function applyModelsToSwaggerDoc(entities: EntityConfig[], swaggerDoc: OAS3Definition) {
+  if (!Connection.initialized) {
+    return
+  }
   autoCompleteResponses(swaggerDoc)
   for (const entity of entities) {
     const model = entity.model as ModelStatic<Model>

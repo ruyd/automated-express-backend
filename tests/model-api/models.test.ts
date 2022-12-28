@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, expect, test } from '@jest/globals'
-import { Connection, sortEntities } from '../../src/shared/db'
+import { checkDatabase, Connection, sortEntities } from '../../src/shared/db'
 import createBackend from '../../src/app'
 import { ModelStatic, Model } from 'sequelize'
 import { v4 as uuid } from 'uuid'
@@ -87,17 +88,11 @@ export function toMatchObjectExceptTimestamps(
   }
 }
 
-afterAll(() => {
-  Connection.db.close()
-})
-
 describe('Entity CRUD', () => {
-  const app = createBackend()
   test('init', async () => {
-    const results = await app.onStartupCompletePromise
-    for (const result of results) {
-      expect(result).toBeTruthy()
-    }
+    Connection.init()
+    const check = await checkDatabase()
+    expect(check).toBeTruthy()
   })
 
   const sorted = Connection.entities.sort(sortEntities)
@@ -180,7 +175,7 @@ describe('Entity CRUD', () => {
     })
   }
 
-  afterAll(async () => {
-    await Connection.db.close()
+  afterAll(() => {
+    Connection.db.close()
   })
 })
