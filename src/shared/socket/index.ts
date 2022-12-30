@@ -4,7 +4,7 @@ import { Server as SocketService, Socket } from 'socket.io'
 import { decodeToken } from '../auth'
 import logger from '../logger'
 import { createOrUpdate } from '../model-api/controller'
-import { UserActiveModel } from '../types/models/user'
+import { UserActiveModel } from '../types'
 import handlers from './handlers'
 import { config } from '../config'
 

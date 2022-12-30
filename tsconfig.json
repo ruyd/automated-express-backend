@@ -9,9 +9,13 @@
     "resolveJsonModule": true,
     "strict": true,
     "sourceMap": true,
+    "skipLibCheck": true,
     "baseUrl": ".",
-    "outDir": "dist",
-    "paths": {}
+    "noEmit": true,
+    "outDir": "build",
+    "paths": {
+      "@lib": ["../lib/src"]
+    }
   },
   "include": ["src", ".eslintrc.js", "package.json", "config/*.json"],
   "exclude": ["dist", "node_modules"]

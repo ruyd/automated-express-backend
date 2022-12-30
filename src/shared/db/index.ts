@@ -8,7 +8,7 @@ import {
   Sequelize,
 } from 'sequelize'
 import migrator from './migrator'
-import config from '../config'
+import { config } from '../config'
 import logger from '../logger'
 
 export const commonOptions: ModelOptions = {
@@ -63,18 +63,24 @@ export class Connection {
       logger.error('DB URL not found, skipping DB init')
       return
     }
-    Connection.db = new Sequelize(config.db.url, {
-      logging: sql => (config.db.trace ? logger.info(`${sql}\n`) : undefined),
-      ssl: !!config.db.ssl,
-      dialectOptions: config.db.ssl
-        ? {
-            ssl: {
-              require: true,
-              rejectUnauthorized: false,
-            },
-          }
-        : {},
-    })
+    logger.info(`Initializing DB...`)
+    try {
+      Connection.db = new Sequelize(config.db.url, {
+        logging: sql => (config.db.trace ? logger.info(`${sql}\n`) : undefined),
+        ssl: !!config.db.ssl,
+        dialectOptions: config.db.ssl
+          ? {
+              ssl: {
+                require: true,
+                rejectUnauthorized: false,
+              },
+            }
+          : {},
+      })
+    } catch (error) {
+      logger.error('Error initializing DB', error)
+      return
+    }
     Connection.initModels()
     Connection.initialized = true
   }
@@ -179,9 +185,7 @@ export function addModel<T extends object>(
 
 export async function createDatabase(): Promise<boolean> {
   logger.info('Database does not exist, creating...')
-
   const rootUrl = config.db.url.replace(config.db.name, 'postgres')
-  console.log('root', rootUrl)
   const root = new Sequelize(rootUrl)
   const qi = root.getQueryInterface()
   try {
@@ -227,10 +231,11 @@ export async function checkDatabase(): Promise<boolean> {
 
     if (config.db.sync) {
       logger.info(
-        `Database models: 
+        `Database: models: 
         ${Connection.entities.map(a => a.name).join(', ')}`,
       )
       await Connection.db.sync({ alter: config.db.alter, force: config.db.force })
+      logger.info('Database: Connected')
     }
     return true
   } catch (e: unknown) {

@@ -4,6 +4,7 @@ import packageJson from '../../package.json'
 import appConfig from '../../config/app.json'
 import logger from './logger'
 import dotenv from 'dotenv'
+import { AppAccessToken, SettingData, SettingType } from './types'
 
 // Anti-webpack sorcery
 const env = process['env']
@@ -35,7 +36,7 @@ export interface Config {
     models: string[]
   }
   auth: {
-    offline: boolean
+    enabled: boolean
     sync: boolean
     trace: boolean
     tokenSecret?: string
@@ -54,6 +55,9 @@ export interface Config {
     manageToken?: string
   }
   swaggerSetup: Partial<OAS3Definition>
+  settings: {
+    [K in SettingType]?: SettingData[K]
+  }
 }
 
 export function parseDatabaseConfig(
@@ -63,16 +67,18 @@ export function parseDatabaseConfig(
   if (!production) {
     return db
   }
-  const url = envi(db.url) as string
+  const url = env.DB_URL || (envi(db.url) as string)
   if (!url) {
     logger.error('DB_URL is not set')
     return db
   }
   const database = url.slice(url.lastIndexOf('/') + 1)
-  const username = url.slice(url.indexOf('//') + 2, url.indexOf(':'))
-  const password = url.slice(url.indexOf(':') + 1, url.indexOf('@'))
-  const host = url.slice(url.indexOf('@') + 1, url.lastIndexOf(':'))
-  const dialect = url.slice(0, url.indexOf(':'))
+  const regex = /(\w+):\/\/(\w+):(.*)@(.*):(\d+)\/(\w+)/
+  const found = url.match(regex)
+  const dialect = found?.[1] || 'postgres'
+  const username = found?.[2] || ''
+  const password = found?.[3] || ''
+  const host = found?.[4] || ''
   return {
     database,
     host,
@@ -93,8 +99,8 @@ export function getConfig(): Config {
     production,
     serviceConfig.db,
   )
-  const databaseUrl = `${dialect}://${username}:${password}@${host}/${database}`
-  const DB_URL = env.DB_URL || databaseUrl
+
+  const DB_URL = `${dialect}://${username}:${password}@${host}/${database}`
   const osHost = os.hostname()
   const isLocalhost = osHost.includes('local')
   const port = Number(env.PORT) || Number(envi(serviceConfig.service.port))
@@ -116,7 +122,7 @@ export function getConfig(): Config {
       origin: env.CORS_ORIGIN || '*',
     },
     db: {
-      trace: true,
+      trace: false,
       sync: true,
       force: false,
       alter: true,
@@ -128,14 +134,14 @@ export function getConfig(): Config {
       models: [],
     },
     auth: {
-      offline: true,
+      enabled: false,
       sync: true,
-      trace: false,
+      trace: true,
       tokenSecret: env.TOKEN_SECRET || 'blank',
-      tenant: env.AUTH_TENANT || 'Set AUTH_TENANT in .env',
+      redirectUrl: env.AUTH_REDIRECT_URL || 'http://localhost:3000/callback',
+      tenant: env.AUTH_TENANT || '',
       domain: `${env.AUTH_TENANT}.auth0.com`,
       baseUrl: `https://${env.AUTH_TENANT}.auth0.com`,
-      redirectUrl: env.AUTH_REDIRECT_URL || 'http://localhost:3000/callback',
       explorerAudience: `https://${env.AUTH_TENANT}.auth0.com/api/v2/`,
       explorerId: env.AUTH_EXPLORER_ID || '',
       explorerSecret: env.AUTH_EXPLORER_SECRET || '',
@@ -159,6 +165,7 @@ export function getConfig(): Config {
       ],
       basePath: '/docs',
     },
+    settings: {},
   }
 }
 
@@ -167,18 +174,38 @@ export function getConfig(): Config {
  * @DevNotes Don't use Connection here since
  * it's a dependency of this file, circular error
  */
-export function getClientConfig() {
+export function getClientConfig(user: AppAccessToken) {
+  const google = config.settings?.google?.enabled
+    ? {
+        clientId: config.settings.google?.clientId,
+      }
+    : undefined
+  const admin =
+    !config.production || user?.roles?.includes('admin')
+      ? {
+          models: config.db.models,
+        }
+      : undefined
+  const auth = config.auth.tenant
+    ? {
+        domain: config.auth.domain,
+        baseUrl: config.auth.baseUrl,
+        audience: config.auth.clientAudience,
+        clientId: config.auth.clientId,
+        redirectUrl: config.auth.redirectUrl,
+        google,
+      }
+    : undefined
+  const settings = config.settings?.system
+    ? {
+        system: config.settings?.system,
+      }
+    : undefined
+
   return {
-    auth: {
-      domain: config.auth.domain,
-      baseUrl: config.auth.baseUrl,
-      audience: config.auth.clientAudience,
-      clientId: config.auth.clientId,
-      redirectUrl: config.auth.redirectUrl,
-    },
-    admin: {
-      models: config.db.models,
-    },
+    auth,
+    settings,
+    admin,
   }
 }
 

@@ -10,11 +10,12 @@ import {
 } from '../../shared/auth'
 import { createOrUpdate } from '../../shared/model-api/controller'
 import { UserModel } from '../../shared/types/models/user'
-import { AppAccessToken, IdentityToken, EnrichedRequest } from '../../shared/types'
+import { AppAccessToken, IdentityToken } from '../../shared/types'
 import { v4 as uuid } from 'uuid'
 import { decode } from 'jsonwebtoken'
 import logger from '../../shared/logger'
 import { config } from '../../shared/config'
+import { EnrichedRequest } from '../../shared/types'
 import { getPictureMock } from '../../shared/util'
 
 export async function register(req: express.Request, res: express.Response) {
@@ -53,8 +54,8 @@ export async function login(req: express.Request, res: express.Response) {
     })
   )?.get()
 
-  if (config.auth.offline && user) {
-    logger.info('Auth in offline dev mode' + user?.email)
+  if (!config.auth.enabled && user) {
+    logger.warn('Auth not enabled - dev mode no password login: ' + user?.email)
     res.json({
       token: createToken(user),
       user,

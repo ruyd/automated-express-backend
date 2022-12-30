@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, expect, test } from '@jest/globals'
-import { checkDatabase, Connection, sortEntities } from '../../src/shared/db'
+import { Connection, sortEntities } from '../../src/shared/db'
 import createBackend from '../../src/app'
 import { ModelStatic, Model } from 'sequelize'
 import { v4 as uuid } from 'uuid'

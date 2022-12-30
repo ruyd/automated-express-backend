@@ -1,6 +1,7 @@
 import { FindOptions, Model, ModelStatic } from 'sequelize/types'
 import { MakeNullishOptional } from 'sequelize/types/utils'
-import { PagedResult, GridPatchProps } from '../../shared/types'
+import { PagedResult } from '../types'
+import { GridPatchProps } from '../types'
 import { HttpNotFoundError } from '../errorHandler'
 import logger from '../logger'
 import sequelize from 'sequelize'
@@ -12,7 +13,7 @@ export async function list<T extends {}>(
   const { count: total, rows } = await model.findAndCountAll({
     raw: true,
     nest: true,
-    include: Object.keys(model.associations),
+    // include: Object.keys(model.associations),
     ...options,
   })
 

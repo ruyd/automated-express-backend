@@ -1,6 +1,6 @@
 import express from 'express'
 import sequelize from 'sequelize'
-import { DrawingModel } from '../../shared/types/models/drawing'
+import { DrawingModel, EnrichedRequest } from '../../shared/types'
 import { list } from '../../shared/model-api/controller'
 import { getClientConfig } from '../../shared/config'
 
@@ -29,8 +29,9 @@ router.get(['/gallery', '/gallery/:userId'], async (req, res) => {
  * /config:
  *  get:
  */
-router.get('/config', async (req, res) => {
-  res.json(getClientConfig())
+router.get('/config', async (_req, res) => {
+  const req = _req as EnrichedRequest
+  res.json(getClientConfig(req.auth))
 })
 
 export default router

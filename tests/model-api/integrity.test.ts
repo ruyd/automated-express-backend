@@ -1,15 +1,16 @@
-import { checkDatabase, Connection } from '../../src/shared/db'
+import createBackendApp from 'src/app'
+import { Connection } from '../../src/shared/db'
 
 describe('integrity check', () => {
+  const app = createBackendApp()
   test('sync', async () => {
-    Connection.init()
-    const seq = await checkDatabase()
-    expect(seq).toBeTruthy()
+    const results = await app.onStartupCompletePromise
+    expect(results[0]).toBeTruthy()
 
     // If data loss is no big deal, we can use sync() to update schema automatically
     // sequelize.sync({ force: true, match: /_test$/ });
   })
-  afterAll(async () => {
-    await Connection.db.close()
+  afterAll(() => {
+    Connection.db.close()
   })
 })

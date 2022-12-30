@@ -9,9 +9,10 @@ import { errorHandler } from './shared/errorHandler'
 import cors from 'cors'
 import api from './routes'
 import { activateAxiosTrace, endpointTracingMiddleware } from './shared/logger'
-import { authProviderSync } from './shared/auth/sync'
+import { authProviderAutoConfigure } from './shared/auth/sync'
 import { checkDatabase, Connection } from './shared/db'
 import { modelAuthMiddleware } from './shared/auth'
+import { loadSettingsAsync } from './shared/settings'
 
 export interface BackendApp extends express.Express {
   onStartupCompletePromise: Promise<boolean[]>
@@ -19,17 +20,18 @@ export interface BackendApp extends express.Express {
 
 export function createBackendApp(): BackendApp {
   const app = express() as BackendApp
-  Connection.init()
-  const promises: Promise<boolean>[] = []
-  promises.push(checkDatabase())
 
   if (!config.production && config.trace) {
     activateAxiosTrace()
   }
 
-  if (process.env.NODE_ENV !== 'test') {
-    authProviderSync()
-  }
+  // Startup
+  Connection.init()
+  const promises = [
+    checkDatabase()
+      .then(async ok => (ok ? await loadSettingsAsync() : ok))
+      .then(async ok => (ok ? await authProviderAutoConfigure() : ok)),
+  ]
 
   // Add Middlewares - Order is important
   app.use(errorHandler)

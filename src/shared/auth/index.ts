@@ -64,7 +64,8 @@ const writeMethods = ['POST', 'PUT', 'PATCH', 'DELETE']
 
 export async function checkToken(header: jwt.JwtHeader | undefined, token: string | undefined) {
   let accessToken: AppAccessToken | undefined
-  const hasAuthProvider = config.auth.baseUrl && config.auth.clientId && config.auth.clientSecret
+  const hasAuthProvider =
+    config.auth.baseUrl && config.auth.clientId && config.auth.clientSecret && config.auth.enabled
   if (hasAuthProvider && header?.alg === 'RS256' && header && token) {
     const result = await getJwkClient().getSigningKey(header.kid)
     const key = result.getPublicKey()
@@ -84,7 +85,7 @@ export async function tokenCheckWare(
 ) {
   try {
     const { header, token } = setRequest(req)
-    if (config.auth.offline) {
+    if (!config.auth.enabled) {
       return next()
     }
     const accessToken = await checkToken(header, token)
@@ -106,7 +107,7 @@ export async function modelAuthMiddleware(
   try {
     const entity = Connection.entities.find(e => e.name === req.originalUrl.replace('/', ''))
     const { header, token } = setRequest(req, entity)
-    if (config.auth.offline) {
+    if (!entity || !config.auth.enabled) {
       return next()
     }
     if (
