@@ -1,4 +1,4 @@
-import { describe, expect, test } from '@jest/globals'
+import { describe, expect, test, afterAll } from '@jest/globals'
 import { Connection, sortEntities } from '../../src/shared/db'
 import createBackend from '../../src/app'
 import { ModelStatic, Model } from 'sequelize'
