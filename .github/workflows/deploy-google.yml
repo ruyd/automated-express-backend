@@ -2,9 +2,9 @@ name: 'Deploy: Google Cloud'
 on:
   push:
     branches: ['master']
-    paths:
-      - 'workspaces/**'
-      - '.github/workflows/**'
+    # paths:
+    #   - 'workspaces/**'
+    #   - '.github/workflows/**'
 env:
   VM_NAME: 'drawserver2'
   PROJECT: 'mstream-368503'
@@ -44,7 +44,7 @@ jobs:
 
       - name: Server Tests
         if: ${{ needs.changes.outputs.server == 'true' }}
-        run: yarn workspace server test
+        run: yarn test
 
   server_deploy:
     needs: [changes, tests]
@@ -73,11 +73,11 @@ jobs:
 
       - name: 'build'
         run: |
-          yarn workspace server build
-          cp workspaces/server/app.yaml workspaces/server/dist/app.yaml
+          yarn build
+          cp app.yaml dist/app.yaml
 
       - name: '.env'
-        run: 'echo "DB_URL=$DB_URL" >> workspaces/server/dist/.env'
+        run: 'echo "DB_URL=$DB_URL" >> dist/.env'
         shell: bash
         env:
           DB_URL: ${{ steps.secrets.outputs.DB_URL }}
@@ -94,7 +94,7 @@ jobs:
 
       - name: 'docker.push.artifactRegistry'
         run: |
-          docker build -t $TAG workspaces/server
+          docker build -t $TAG .
           docker push $TAG
 
       - name: 'vm.check'
@@ -124,13 +124,12 @@ jobs:
         if: ${{ false }}
         uses: 'google-github-actions/deploy-appengine@v1'
         with:
-          working_directory: 'workspaces/server/dist'
+          working_directory: 'dist'
 
       - id: 'cloudrun'
         if: ${{ false }}
         uses: 'google-github-actions/deploy-cloudrun@v1'
         with:
           service: 'server'
-          source: 'workspaces/server'
           secrets: |
             DB_URL=DB_URL:latest
