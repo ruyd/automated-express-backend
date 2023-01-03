@@ -28,9 +28,9 @@ jobs:
             deploy:
               - '.github/workflows/deploy-google.yml' 
             tests:
-              - 'tests/**' 
+              - 'tests/**'
             server:
-              - 'src/**'
+              - '**'
 
   tests:
     needs: [changes]
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install
-        if: ${{ needs.changes.outputs.test == 'true' }}
+        if: ${{ needs.changes.outputs.server == 'true' }}
         run: yarn install --immutable
 
       - name: Server Tests
