@@ -4,7 +4,7 @@ import packageJson from '../../package.json'
 import appConfig from '../../config/app.json'
 import logger from './logger'
 import dotenv from 'dotenv'
-import { AppAccessToken, SettingData, SettingType } from './types'
+import { SettingData, SettingType } from './types'
 
 // Anti-webpack sorcery
 const env = process['env']
@@ -166,46 +166,6 @@ export function getConfig(): Config {
       basePath: '/docs',
     },
     settings: {},
-  }
-}
-
-/**
- * Public config object for clients
- * @DevNotes Don't use Connection here since
- * it's a dependency of this file, circular error
- */
-export function getClientConfig(user: AppAccessToken) {
-  const google = config.settings?.google?.enabled
-    ? {
-        clientId: config.settings.google?.clientId,
-      }
-    : undefined
-  const admin =
-    !config.production || user?.roles?.includes('admin')
-      ? {
-          models: config.db.models,
-        }
-      : undefined
-  const auth = config.auth.tenant
-    ? {
-        domain: config.auth.domain,
-        baseUrl: config.auth.baseUrl,
-        audience: config.auth.clientAudience,
-        clientId: config.auth.clientId,
-        redirectUrl: config.auth.redirectUrl,
-        google,
-      }
-    : undefined
-  const settings = config.settings?.system
-    ? {
-        system: config.settings?.system,
-      }
-    : undefined
-
-  return {
-    auth,
-    settings,
-    admin,
   }
 }
 

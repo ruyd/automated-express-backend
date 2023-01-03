@@ -5,6 +5,7 @@ import { GridPatchProps } from '../types'
 import { HttpNotFoundError } from '../errorHandler'
 import logger from '../logger'
 import sequelize from 'sequelize'
+import Connection from '../db'
 
 export async function list<T extends {}>(
   model: ModelStatic<Model<T>>,
@@ -44,6 +45,10 @@ export async function createOrUpdate<T extends object>(
   const casted = payload as unknown as MakeNullishOptional<T>
   try {
     const [item] = await model.upsert(casted)
+    const entity = Connection.entities.find(e => e.name === model.name)
+    if (entity?.onChanges) {
+      entity.onChanges(`${entity.name}`, item)
+    }
     return item.get()
   } catch (e: unknown) {
     const err = e as Error

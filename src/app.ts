@@ -2,24 +2,33 @@ import { config } from './shared/config'
 import express from 'express'
 import bodyParser from 'body-parser'
 import swaggerUi from 'swagger-ui-express'
-import swaggerJsdoc, { OAS3Definition } from 'swagger-jsdoc'
-import { applyModelsToSwaggerDoc } from './shared/model-api/swagger'
+import { prepareSwagger } from './shared/model-api/swagger'
 import { registerModelApiRoutes } from './shared/model-api/routes'
 import { errorHandler } from './shared/errorHandler'
 import cors from 'cors'
 import api from './routes'
-import { activateAxiosTrace, endpointTracingMiddleware } from './shared/logger'
+import { activateAxiosTrace, endpointTracingMiddleware, printRouteSummary } from './shared/logger'
 import { authProviderAutoConfigure } from './shared/auth/sync'
 import { checkDatabase, Connection } from './shared/db'
 import { modelAuthMiddleware } from './shared/auth'
 import { loadSettingsAsync } from './shared/settings'
+import { homepage } from './shared/server'
 
 export interface BackendApp extends express.Express {
   onStartupCompletePromise: Promise<boolean[]>
 }
 
-export function createBackendApp(): BackendApp {
+export interface BackendOptions {
+  checks?: boolean
+  trace?: boolean
+}
+
+export function createBackendApp({ checks, trace }: BackendOptions = { checks: true }): BackendApp {
   const app = express() as BackendApp
+
+  if (trace) {
+    config.trace = trace
+  }
 
   if (!config.production && config.trace) {
     activateAxiosTrace()
@@ -28,9 +37,11 @@ export function createBackendApp(): BackendApp {
   // Startup
   Connection.init()
   const promises = [
-    checkDatabase()
-      .then(async ok => (ok ? await loadSettingsAsync() : ok))
-      .then(async ok => (ok ? await authProviderAutoConfigure() : ok)),
+    checks
+      ? checkDatabase()
+          .then(async ok => (ok ? await loadSettingsAsync() : ok))
+          .then(async ok => (ok ? await authProviderAutoConfigure() : ok))
+      : Promise.resolve(true),
   ]
 
   // Add Middlewares - Order is important
@@ -45,14 +56,11 @@ export function createBackendApp(): BackendApp {
   app.use(endpointTracingMiddleware)
   app.use(modelAuthMiddleware)
 
-  // Swagger Portal
-  const swaggerDoc = swaggerJsdoc({
-    swaggerDefinition: config.swaggerSetup as OAS3Definition,
-    apis: ['**/*/swagger.yaml', '**/routes/**/index.*s'],
-  }) as OAS3Definition
+  // Add Routes
+  app.use(api)
+  registerModelApiRoutes(Connection.entities, api)
 
-  applyModelsToSwaggerDoc(Connection.entities, swaggerDoc)
-
+  const swaggerDoc = prepareSwagger(app, Connection.entities)
   app.use(
     config.swaggerSetup.basePath,
     swaggerUi.serve,
@@ -64,12 +72,11 @@ export function createBackendApp(): BackendApp {
     }),
   )
 
-  // Endpoints
-  registerModelApiRoutes(Connection.entities, api)
-
-  app.use(api)
-
   app.onStartupCompletePromise = Promise.all(promises)
+
+  printRouteSummary(app)
+
+  app.get('/', homepage)
 
   return app
 }

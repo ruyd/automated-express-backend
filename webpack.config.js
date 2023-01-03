@@ -6,6 +6,7 @@ const NodePolyfillPlugin = require('node-polyfill-webpack-plugin')
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin')
 const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin')
 const GeneratePackageJsonPlugin = require('generate-package-json-webpack-plugin')
+const SwaggerJSDocWebpackPlugin = require('swagger-jsdoc-webpack-plugin')
 const appConfig = require('./config/app.json')
 const createEnvironmentHash = require('./tools/createEnvironmentHash')
 const getClientEnvironment = require('./tools/env')
@@ -53,6 +54,14 @@ module.exports = {
     new ForkTsCheckerWebpackPlugin(),
     new NodePolyfillPlugin(),
     new GeneratePackageJsonPlugin({ ...packageJson, main: 'index.js' }),
+    new SwaggerJSDocWebpackPlugin({
+      definition: {
+        openapi: '3.0.0',
+        title: packageJson.name,
+        description: packageJson.description,
+      },
+      apis: ['./src/routes/**/*.yaml', './src/routes/**/index.ts'],
+    }),
   ],
   module: {
     rules: [

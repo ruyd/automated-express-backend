@@ -1,8 +1,7 @@
+import express from 'express'
 import { JwtPayload } from 'jsonwebtoken'
 import { EntityConfig } from '../db'
 import { Cart } from './cart'
-import express from 'express'
-
 export * from './models'
 export * from './cart'
 export * from './drawing'
@@ -20,6 +19,7 @@ export interface Jwt {
   iat?: number | undefined
   jti?: string | undefined
 }
+
 export interface AppAccessToken extends JwtPayload {
   userId: string
   roles: string[]

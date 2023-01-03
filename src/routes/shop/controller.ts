@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { CheckoutRequest, OrderStatus } from '../../shared/types'
 import express from 'express'
 import { DrawingModel, EnrichedRequest } from '../../shared/types'

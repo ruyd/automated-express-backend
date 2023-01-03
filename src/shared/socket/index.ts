@@ -7,22 +7,22 @@ import { createOrUpdate } from '../model-api/controller'
 import { UserActiveModel } from '../types'
 import handlers from './handlers'
 import { config } from '../config'
+import { getClientConfigSettings } from '../settings'
 
 export type SocketHandler = (io: SocketService, socket: Socket) => void
 
+export let io: SocketService
+
 export function registerSocket(server: Server | ServerHttps): void {
-  const io = new SocketService(server, {
+  io = new SocketService(server, {
     cors: config.cors,
   })
   const onConnection = (socket: Socket) => {
     handlers.forEach((handler: SocketHandler) => handler(io, socket))
 
-    logger.info(`⚡️[socket]: New connection: ${socket.id}`)
+    logger.info(`⚡️ [socket]: New connection: ${socket.id}`)
 
     socket.send('Helo', {
-      config: {
-        test: true,
-      },
       notifications: ['Hi!'],
     })
 
@@ -36,7 +36,7 @@ export function registerSocket(server: Server | ServerHttps): void {
     })
 
     socket.on('disconnect', () => {
-      logger.info('user disconnected' + socket.id)
+      logger.info('- socket disconnected: ' + socket.id)
       UserActiveModel.destroy({
         where: {
           socketId: socket.id,
@@ -45,4 +45,19 @@ export function registerSocket(server: Server | ServerHttps): void {
     })
   }
   io.on('connection', onConnection)
+}
+
+export async function broadcastChange(eventName: string, data: unknown): Promise<void> {
+  // const sockets = await io.except(userId).fetchSockets()
+  // io.except(userId).emit('config', { data })
+  io.emit(eventName, { data })
+}
+
+export async function notifyChange(eventName: string): Promise<void> {
+  io.emit(eventName)
+}
+
+export async function sendConfig(): Promise<void> {
+  const payload = await getClientConfigSettings()
+  io.emit('config', { ...payload })
 }

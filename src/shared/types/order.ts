@@ -1,6 +1,6 @@
-import { Entity } from '.'
 import { User } from './user'
 import { Drawing } from './drawing'
+import { Entity } from '.'
 
 export enum OrderStatus {
   Pending = 'pending',

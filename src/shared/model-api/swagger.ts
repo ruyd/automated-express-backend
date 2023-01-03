@@ -1,6 +1,12 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import express from 'express'
 import { Model, ModelStatic } from 'sequelize/types'
-import { OAS3Definition, Schema } from 'swagger-jsdoc'
+import swaggerJsdoc, { OAS3Definition, Schema } from 'swagger-jsdoc'
+import config from '../config'
 import Connection, { EntityConfig } from '../db'
+import logger from '../logger'
+import { getRoutesFromApp } from '../server'
+import fs from 'fs'
 
 const conversions: Record<string, string> = {
   INTEGER: 'number',
@@ -159,11 +165,10 @@ export function autoCompleteResponses(swaggerDoc: OAS3Definition) {
   }
 }
 
-export function applyModelsToSwaggerDoc(entities: EntityConfig[], swaggerDoc: OAS3Definition) {
+export function applyEntitiesToSwaggerDoc(entities: EntityConfig[], swaggerDoc: OAS3Definition) {
   if (!Connection.initialized) {
     return
   }
-  autoCompleteResponses(swaggerDoc)
   for (const entity of entities) {
     const model = entity.model as ModelStatic<Model>
     const schema = getSchema(model)
@@ -188,4 +193,45 @@ export function applyModelsToSwaggerDoc(entities: EntityConfig[], swaggerDoc: OA
       }
     }
   }
+}
+
+export function applyRoutes(app: express.Application, swaggerDoc: OAS3Definition) {
+  const paths = swaggerDoc.paths || {}
+  const routes = getRoutesFromApp(app).filter(r => r.from === 'controller')
+  for (const route of routes) {
+    if (!paths[route.path]) paths[route.path] = {}
+    const def = paths[route.path]
+    for (const method of route.methods) {
+      if (!def[method]) {
+        def[method] = { summary: 'Detected' }
+      }
+    }
+  }
+}
+
+export function prepareSwagger(app: express.Application, entities: EntityConfig[]): OAS3Definition {
+  const swaggerDev = swaggerJsdoc({
+    swaggerDefinition: config.swaggerSetup as OAS3Definition,
+    apis: ['**/*/swagger.yaml', '**/*/index.ts'],
+  }) as OAS3Definition
+
+  const swaggerProd = fs.existsSync('swagger.json')
+    ? JSON.parse(fs.readFileSync('swagger.json', 'utf8'))
+    : {}
+
+  const swaggerDoc = { ...swaggerDev, ...swaggerProd }
+
+  applyRoutes(app, swaggerDoc)
+
+  if (config.trace) {
+    logger.info('***** Swagger Paths *****')
+    // eslint-disable-next-line no-console
+    console.table(Object.keys(swaggerDoc?.paths || {}))
+  }
+
+  applyEntitiesToSwaggerDoc(entities, swaggerDoc)
+
+  autoCompleteResponses(swaggerDoc)
+
+  return swaggerDoc
 }

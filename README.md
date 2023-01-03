@@ -1,6 +1,6 @@
 # Automated TypeScript Express Backend
 
-[![Demo](https://img.shields.io/badge/Click%20for%20Demo-HEROKU-GREEN.svg)](https://drawspace-api.herokuapp.com/docs)
+[![Demo](https://img.shields.io/badge/Click%20for%20Demo-GCP.svg)](https://api.drawspace.app/docs)
 
 [![Tests](https://github.com/ruyd/automated-express-backend/actions/workflows/tests.yml/badge.svg)](https://github.com/ruyd/automated-express-backend/actions/workflows/tests.yml)
 

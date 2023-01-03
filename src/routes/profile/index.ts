@@ -98,11 +98,6 @@ router.post('/profile/social', social)
  */
 router.post('/profile/social/check', socialCheck)
 
-/**
- * @swagger
- * /active:
- *  get:
- */
 router.get('/active', async (req, res) => {
   const handler = listHandler.bind(UserActiveModel)
   const items = await handler(req, res)

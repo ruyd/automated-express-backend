@@ -30,6 +30,7 @@ export interface EntityConfig<M extends Model = Model> {
   publicWrite?: boolean
   model?: ModelStatic<M>
   joins?: Join[]
+  onChanges?: (source?: string, model?: M) => Promise<void> | void
 }
 
 export function sortEntities(a: EntityConfig, b: EntityConfig): number {
@@ -167,6 +168,7 @@ export function addModel<T extends object>(
   roles?: string[],
   publicRead?: boolean,
   publicWrite?: boolean,
+  onChanges?: (source?: string, model?: Model<T>) => Promise<void> | void,
 ): ModelStatic<Model<T, T>> {
   const model = class extends Model {}
   const cfg: EntityConfig = {
@@ -177,6 +179,7 @@ export function addModel<T extends object>(
     model,
     publicRead,
     publicWrite,
+    onChanges,
   }
   Connection.entities.push(cfg)
   logger.info(`Registered model ${name}`)
@@ -185,6 +188,7 @@ export function addModel<T extends object>(
 
 export async function createDatabase(): Promise<boolean> {
   logger.info('Database does not exist, creating...')
+
   const rootUrl = config.db.url.replace(config.db.name, 'postgres')
   const root = new Sequelize(rootUrl)
   const qi = root.getQueryInterface()

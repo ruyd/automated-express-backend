@@ -4,6 +4,7 @@ import axios from 'axios'
 import winston from 'winston'
 import { config } from './config'
 import { decodeToken } from './auth'
+import { getRoutesFromApp } from './server'
 
 const format = winston.format.combine(winston.format.timestamp(), winston.format.simple())
 const logger = winston.createLogger({
@@ -69,6 +70,15 @@ export function activateAxiosTrace() {
     console.log('> Response:', req.status, req.statusText, config.trace ? req.data : '')
     return req
   })
+}
+
+export function printRouteSummary(app: express.Application) {
+  if (!config.trace) {
+    return
+  }
+  logger.info('******** ROUTE SUMMARY ********')
+  const report = getRoutesFromApp(app)
+  console.log(report)
 }
 
 export default logger

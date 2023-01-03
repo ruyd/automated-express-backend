@@ -1,9 +1,10 @@
-import { describe, expect, test, afterAll } from '@jest/globals'
+import { describe, expect, test } from '@jest/globals'
 import { Connection, sortEntities } from '../../src/shared/db'
 import createBackend from '../../src/app'
 import { ModelStatic, Model } from 'sequelize'
 import { v4 as uuid } from 'uuid'
 import { createOrUpdate, deleteIfExists, getIfExists } from '../../src/shared/model-api/controller'
+jest.mock('../../src/shared/socket')
 
 const conversions: Record<string, string> = {
   INTEGER: 'number',
@@ -95,6 +96,7 @@ describe('Entity CRUD', () => {
       expect(check).toBeTruthy()
     }
   })
+
   afterAll(() => {
     Connection.db.close()
   })

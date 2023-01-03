@@ -1,0 +1,136 @@
+name: 'Deploy: Google Cloud'
+on:
+  push:
+    branches: ['master']
+    paths:
+      - 'workspaces/**'
+      - '.github/workflows/**'
+env:
+  VM_NAME: 'drawserver2'
+  PROJECT: 'mstream-368503'
+  PROJECT_NO: 364055912546
+  ZONE: 'us-central1-a'
+
+jobs:
+  changes:
+    runs-on: 'ubuntu-latest'
+    outputs:
+      deploy: ${{ steps.filter.outputs.deploy }}
+      test: ${{ steps.filter.outputs.test }}
+      client: ${{ steps.filter.outputs.client }}
+      server: ${{ steps.filter.outputs.server }}
+    steps:
+      - uses: 'actions/checkout@v3'
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            deploy:
+              - '.github/workflows/deploy-google.yml' 
+            tests:
+              - 'tests/**' 
+            server:
+              - 'src/**'
+
+  tests:
+    needs: [changes]
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install
+        if: ${{ needs.changes.outputs.test == 'true' }}
+        run: yarn install --immutable
+
+      - name: Server Tests
+        if: ${{ needs.changes.outputs.server == 'true' }}
+        run: yarn workspace server test
+
+  server_deploy:
+    needs: [changes, tests]
+    if: ${{ needs.changes.outputs.server == 'true' || needs.changes.outputs.deploy == 'true' }}
+    runs-on: 'ubuntu-latest'
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - uses: 'actions/checkout@v3'
+
+      - name: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          workload_identity_provider: 'projects/364055912546/locations/global/workloadIdentityPools/default-pool/providers/github-provider'
+          service_account: 'github@mstream-368503.iam.gserviceaccount.com'
+
+      - id: 'secrets'
+        uses: 'google-github-actions/get-secretmanager-secrets@v1'
+        with:
+          secrets: |-
+            DB_URL:364055912546/DB_URL
+
+      - name: 'install'
+        run: yarn install --immutable
+
+      - name: 'build'
+        run: |
+          yarn workspace server build
+          cp workspaces/server/app.yaml workspaces/server/dist/app.yaml
+
+      - name: '.env'
+        run: 'echo "DB_URL=$DB_URL" >> workspaces/server/dist/.env'
+        shell: bash
+        env:
+          DB_URL: ${{ steps.secrets.outputs.DB_URL }}
+
+      - name: 'tag'
+        run: echo "TAG=gcr.io/$PROJECT/$VM_NAME.${{ github.ref_name }}:latest" >> $GITHUB_ENV
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: auth
+        run: |-
+          gcloud --quiet auth configure-docker
+
+      - name: 'docker.push.artifactRegistry'
+        run: |
+          docker build -t $TAG workspaces/server
+          docker push $TAG
+
+      - name: 'vm.check'
+        if: ${{ false }}
+        run: |
+          # check if it exists
+          gcloud compute instances describe $VM_NAME --zone $ZONE > /dev/null 2>&1
+          echo "VM_EXISTS=$?" >> $GITHUB_ENV
+          if [ $? -eq 0 ]; then
+            echo "VM exists, continuing"
+          else
+            echo "VM does not exist, creating with container"
+            gcloud compute instances create-with-container $VM_NAME \
+              --zone $ZONE \
+              --container-image $TAG
+          fi
+
+      - name: 'vm.trigger.redeploy'
+        # if: ${{ env.VM_EXISTS == 0 }}
+        if: ${{ false }}
+        run: |
+          gcloud compute instances update-container $VM_NAME \
+            --zone $ZONE \
+            --container-image $TAG
+
+      - id: 'appengine'
+        if: ${{ false }}
+        uses: 'google-github-actions/deploy-appengine@v1'
+        with:
+          working_directory: 'workspaces/server/dist'
+
+      - id: 'cloudrun'
+        if: ${{ false }}
+        uses: 'google-github-actions/deploy-cloudrun@v1'
+        with:
+          service: 'server'
+          source: 'workspaces/server'
+          secrets: |
+            DB_URL=DB_URL:latest
