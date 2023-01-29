@@ -2,14 +2,18 @@ name: 'Deploy: Google Cloud'
 on:
   push:
     branches: ['master']
-    # paths:
-    #   - 'workspaces/**'
-    #   - '.github/workflows/**'
+    paths:
+      - 'workspaces/**'
+      - '.github/workflows/**'
 env:
   VM_NAME: 'drawserver2'
   PROJECT: 'mstream-368503'
   PROJECT_NO: 364055912546
   ZONE: 'us-central1-a'
+  REGISTRY: 'gcr.io'
+  IMAGE_PATH: 'gcr.io/mstream-368503'
+  # REGISTRY: 'us-central1-docker.pkg.dev'
+  # IMAGE_PATH: 'us-central1-docker.pkg.dev/mstream-368503/goodvibes'
 
 jobs:
   changes:
@@ -19,6 +23,7 @@ jobs:
       test: ${{ steps.filter.outputs.test }}
       client: ${{ steps.filter.outputs.client }}
       server: ${{ steps.filter.outputs.server }}
+      killswitch: ${{ steps.filter.outputs.killswitch }}
     steps:
       - uses: 'actions/checkout@v3'
       - uses: dorny/paths-filter@v2
@@ -27,19 +32,21 @@ jobs:
           filters: |
             deploy:
               - '.github/workflows/deploy-google.yml' 
-            tests:
+            test:
+              - 'src/**'
               - 'tests/**'
             server:
-              - '**'
+              - 'src/**'
 
   tests:
     needs: [changes]
     runs-on: 'ubuntu-latest'
     steps:
       - uses: actions/checkout@v3
+        if: ${{ needs.changes.outputs.test == 'true' }}
 
       - name: Install
-        if: ${{ needs.changes.outputs.server == 'true' }}
+        if: ${{ needs.changes.outputs.test == 'true' }}
         run: yarn install --immutable
 
       - name: Server Tests
@@ -68,68 +75,103 @@ jobs:
           secrets: |-
             DB_URL:364055912546/DB_URL
 
+      - name: 'tag'
+        run: echo "TAG=$IMAGE_PATH/$VM_NAME.${{ github.ref_name }}:latest" >> $GITHUB_ENV
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: 'vmExists'
+        run: |
+          # check if it exists
+          gcloud compute instances describe $VM_NAME --zone $ZONE > /dev/null 2>&1 || export NOT_FOUND=1
+          if [ $NOT_FOUND -eq 1 ]; then
+            echo "Not Found"
+            echo "VM_EXISTS=0" >> $GITHUB_ENV
+          else
+            echo "Found"
+            echo "VM_EXISTS=1" >> $GITHUB_ENV
+          fi
+
       - name: 'install'
         run: yarn install --immutable
 
       - name: 'build'
         run: |
-          yarn build
-          cp app.yaml dist/app.yaml
+          yarn workspace server build
+          cp workspaces/server/app.yaml workspaces/server/dist/app.yaml
 
       - name: '.env'
-        run: 'echo "DB_URL=$DB_URL" >> dist/.env'
+        run: |
+          echo "DB_URL=$DB_URL" >> workspaces/server/dist/.env
+          echo "SSL_CERT=$SSL_CERT" >> workspaces/server/dist/.env
+          echo "SSL_KEY=$SSL_KEY" >> workspaces/server/dist/.env
         shell: bash
         env:
           DB_URL: ${{ steps.secrets.outputs.DB_URL }}
+          SSL_CERT: ${{ steps.secrets.outputs.SSL_CERT }}
+          SSL_KEY: ${{ steps.secrets.outputs.SSL_KEY }}
 
-      - name: 'tag'
-        run: echo "TAG=gcr.io/$PROJECT/$VM_NAME.${{ github.ref_name }}:latest" >> $GITHUB_ENV
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
-
-      - name: auth
+      - name: 'docker.auth'
         run: |-
-          gcloud --quiet auth configure-docker
+          gcloud --quiet auth configure-docker $REGISTRY
 
       - name: 'docker.push.artifactRegistry'
         run: |
-          docker build -t $TAG .
+          docker build -t $TAG workspaces/server
           docker push $TAG
 
-      - name: 'vm.check'
+      - name: 'vm.create'
+        # if: ${{ env.VM_EXISTS == 0 }}
         if: ${{ false }}
         run: |
-          # check if it exists
-          gcloud compute instances describe $VM_NAME --zone $ZONE > /dev/null 2>&1
-          echo "VM_EXISTS=$?" >> $GITHUB_ENV
-          if [ $? -eq 0 ]; then
-            echo "VM exists, continuing"
-          else
-            echo "VM does not exist, creating with container"
-            gcloud compute instances create-with-container $VM_NAME \
-              --zone $ZONE \
-              --container-image $TAG
-          fi
+          echo "VM does not exist, creating with container"
+          gcloud compute instances create-with-container $VM_NAME \
+            --zone=$ZONE \
+            --container-image=$TAG \
+            --machine-type=e2-micro \
+            --tags=http-server,https-server
 
-      - name: 'vm.trigger.redeploy'
-        # if: ${{ env.VM_EXISTS == 0 }}
+      - name: 'vm.existing.redeploy'
+        # if: ${{ env.VM_EXISTS == 1 }}
         if: ${{ false }}
         run: |
           gcloud compute instances update-container $VM_NAME \
             --zone $ZONE \
             --container-image $TAG
 
-      - id: 'appengine'
+      - name: appengine
         if: ${{ false }}
         uses: 'google-github-actions/deploy-appengine@v1'
         with:
-          working_directory: 'dist'
+          working_directory: 'workspaces/server/dist'
 
-      - id: 'cloudrun'
+      - name: cloudrun
         if: ${{ false }}
         uses: 'google-github-actions/deploy-cloudrun@v1'
         with:
           service: 'server'
+          source: 'workspaces/server'
           secrets: |
             DB_URL=DB_URL:latest
+
+      - name: Get GKE Credentials
+        uses: 'google-github-actions/get-gke-credentials@v1.0.1'
+        if: ${{ false }}
+        with:
+          cluster_name: ${{ env.VM_NAME }}
+          location: ${{ env.ZONE }}
+
+      - name: kustomize
+        if: ${{ false }}
+        run: |-
+          curl -sfLo kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v3.1.0/kustomize_3.1.0_linux_amd64
+          chmod u+x ./kustomize
+
+      - name: gke
+        if: ${{ false }}
+        run: |-
+          ./kustomize edit set image $TAG
+          ./kustomize build . | kubectl apply -f -
+          kubectl rollout status deployment/$VM_NAME
+          kubectl get services -o wide
