@@ -98,14 +98,14 @@ jobs:
 
       - name: 'build'
         run: |
-          yarn workspace server build
-          cp workspaces/server/app.yaml workspaces/server/dist/app.yaml
+          yarn build
+          cp app.yaml dist/app.yaml
 
       - name: '.env'
         run: |
-          echo "DB_URL=$DB_URL" >> workspaces/server/dist/.env
-          echo "SSL_CERT=$SSL_CERT" >> workspaces/server/dist/.env
-          echo "SSL_KEY=$SSL_KEY" >> workspaces/server/dist/.env
+          echo "DB_URL=$DB_URL" >> dist/.env
+          echo "SSL_CERT=$SSL_CERT" >> dist/.env
+          echo "SSL_KEY=$SSL_KEY" >> dist/.env
         shell: bash
         env:
           DB_URL: ${{ steps.secrets.outputs.DB_URL }}
@@ -118,7 +118,7 @@ jobs:
 
       - name: 'docker.push.artifactRegistry'
         run: |
-          docker build -t $TAG workspaces/server
+          docker build -t $TAG .
           docker push $TAG
 
       - name: 'vm.create'
@@ -144,14 +144,14 @@ jobs:
         if: ${{ false }}
         uses: 'google-github-actions/deploy-appengine@v1'
         with:
-          working_directory: 'workspaces/server/dist'
+          working_directory: 'dist'
 
       - name: cloudrun
         if: ${{ false }}
         uses: 'google-github-actions/deploy-cloudrun@v1'
         with:
           service: 'server'
-          source: 'workspaces/server'
+          source: '.'
           secrets: |
             DB_URL=DB_URL:latest
 
