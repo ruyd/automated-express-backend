@@ -1,6 +1,7 @@
+import { checkMigrations } from '../../src/shared/db/migrator'
 import { beforeAllHook } from 'tests/helpers'
 import createBackendApp from '../../src/app'
-import { checkMigrations, Connection } from '../../src/shared/db'
+import { Connection } from '../../src/shared/db'
 
 beforeAll(() => beforeAllHook())
 afterAll(() => {

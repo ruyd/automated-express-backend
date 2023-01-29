@@ -109,7 +109,7 @@ afterAll(() => {
   Connection.db.close()
 })
 describe('Entity CRUD', () => {
-  const app = createBackendApp({ checks: false, trace: false })
+  const app = createBackendApp({ checks: true, trace: false })
   test('startup', async () => {
     const checks = await app.onStartupCompletePromise
     expect(checks[0]).toBeTruthy()
