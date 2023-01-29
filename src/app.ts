@@ -9,10 +9,11 @@ import cors from 'cors'
 import api from './routes'
 import { activateAxiosTrace, endpointTracingMiddleware, printRouteSummary } from './shared/logger'
 import { authProviderAutoConfigure } from './shared/auth/sync'
-import { checkDatabase, Connection } from './shared/db'
+import { Connection } from './shared/db'
 import { modelAuthMiddleware } from './shared/auth'
 import { loadSettingsAsync } from './shared/settings'
 import { homepage } from './shared/server'
+import { checkDatabase } from './shared/db/check'
 
 export interface BackendApp extends express.Express {
   onStartupCompletePromise: Promise<boolean[]>

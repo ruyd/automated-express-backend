@@ -7,7 +7,6 @@ import {
   ModelStatic,
   Sequelize,
 } from 'sequelize'
-import migrator from './migrator'
 import { config } from '../config'
 import logger from '../logger'
 
@@ -206,59 +205,6 @@ export async function createDatabase(): Promise<boolean> {
     return false
   }
   return true
-}
-
-export async function checkMigrations(): Promise<boolean> {
-  const pending = await migrator.pending()
-  if (pending.length > 0) {
-    logger.info('Pending migrations', pending)
-
-    try {
-      const result = await migrator.up()
-      logger.info('Migrations applied', result)
-    } catch (e: unknown) {
-      logger.error('Migration failed, reverting...', e)
-      const down = await migrator.down()
-      logger.info('Migrations reverted', down)
-
-      return false
-    }
-  }
-  return true
-}
-
-export async function checkDatabase(): Promise<boolean> {
-  if (!Connection.initialized) {
-    logger.error('DB Connection not initialized')
-    return false
-  }
-  try {
-    logger.info('Connecting to database...')
-    config.db.models = Connection.entities.map(m => m.name)
-    await Connection.db.authenticate()
-
-    if (config.db.sync) {
-      logger.info(
-        `Database: models: 
-        ${Connection.entities.map(a => a.name).join(', ')}`,
-      )
-      await Connection.db.sync({ alter: config.db.alter, force: config.db.force })
-      logger.info('Database: Connected')
-    }
-    return true
-  } catch (e: unknown) {
-    const msg = (e as Error)?.message
-    logger.error('Unable to connect to the database:', e)
-    if (msg?.includes('does not exist')) {
-      const result = await createDatabase()
-      return result
-    }
-    if (msg?.includes('column')) {
-      const result = await checkMigrations()
-      return result
-    }
-  }
-  return false
 }
 
 export default Connection
