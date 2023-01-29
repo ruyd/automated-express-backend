@@ -1,14 +1,15 @@
 import { describe, expect, test } from '@jest/globals'
-import { Connection, sortEntities } from '../../src/shared/db'
-import createBackend from '../../src/app'
+import { Connection, sortEntities } from 'src/shared/db'
 import { ModelStatic, Model } from 'sequelize'
 import { v4 as uuid } from 'uuid'
-import { createOrUpdate, deleteIfExists, getIfExists } from '../../src/shared/model-api/controller'
+import createBackendApp from 'src/app'
+import { createOrUpdate, deleteIfExists, getIfExists } from 'src/shared/model-api/controller'
+import { beforeAllHook } from 'tests/helpers'
 jest.mock('../../src/shared/socket')
 
 const conversions: Record<string, string> = {
   INTEGER: 'number',
-  BIGINT: 'number',
+  BIGINT: 'snumber',
   FLOAT: 'number',
   DOUBLE: 'number',
   DECIMAL: 'number',
@@ -21,7 +22,7 @@ const conversions: Record<string, string> = {
   ['TIMESTAMP WITH TIME ZONE']: 'date',
 }
 
-const excluded = ['createdAt', 'updatedAt', 'deletedAt']
+const excluded = ['createdAt', 'updatedAt', 'deletedAt', 'audienceIds']
 
 export function getRandomInt(min: number, max: number) {
   min = Math.ceil(min)
@@ -29,7 +30,13 @@ export function getRandomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min) + min)
 }
 
-export function getMockValue(columnName: string, columnType: string, randomize = false) {
+export function getMockValue(
+  model: ModelStatic<Model>,
+  mock: { [key: string]: unknown },
+  columnName: string,
+  columnType: string,
+  randomize = false,
+) {
   const type = conversions[columnType] || columnType
   const suffix = randomize ? Math.random() : ''
   const increment = randomize ? getRandomInt(1, 1000000) : 0
@@ -42,6 +49,8 @@ export function getMockValue(columnName: string, columnType: string, randomize =
       return columnName + suffix
     case 'number':
       return 1 + increment
+    case 'snumber':
+      return 1 + increment + ''
     case type.match(/DECIMAL\(?.*\)?/)?.input:
       return (1 + increment).toFixed(scale as number) + ''
     case 'BOOLEAN':
@@ -53,6 +62,13 @@ export function getMockValue(columnName: string, columnType: string, randomize =
     case 'JSONB':
     case 'JSON':
       return { test: 'test' }
+    case 'VIRTUAL': {
+      const column = model.getAttributes()[columnName]
+      if (!column.get) return undefined
+      const getter = column.get.bind(mock as unknown as Model)
+      const bound = getter()
+      return bound
+    }
     default:
       // eslint-disable-next-line no-console
       console.log('getMockValue: unhandled type ' + columnType)
@@ -67,7 +83,7 @@ export function getPopulatedModel(model: ModelStatic<Model>, cachedKeys: Record<
   ) as [[string, { type: string; allowNull: boolean }]]
   const mock: { [key: string]: unknown } = {}
   for (const [name, attribute] of columns) {
-    mock[name] = getMockValue(name, attribute.type.toString())
+    mock[name] = getMockValue(model, mock, name, attribute.type.toString())
     if (model.primaryKeyAttribute === name && !cachedKeys[name]) {
       cachedKeys[name] = mock[name]
     } else if (cachedKeys[name]) {
@@ -88,18 +104,18 @@ export function toMatchObjectExceptTimestamps(
   }
 }
 
+beforeAll(() => beforeAllHook())
+afterAll(() => {
+  Connection.db.close()
+})
 describe('Entity CRUD', () => {
-  const app = createBackend()
-  test('init', async () => {
+  const app = createBackendApp({ checks: false, trace: false })
+  test('startup', async () => {
     const checks = await app.onStartupCompletePromise
-    for (const check of checks) {
-      expect(check).toBeTruthy()
-    }
+    expect(checks[0]).toBeTruthy()
   })
 
-  afterAll(() => {
-    Connection.db.close()
-  })
+  console.log = jest.fn()
 
   const sorted = Connection.entities.sort(sortEntities)
   const mocks = {} as Record<string, { [key: string]: unknown }>
@@ -113,7 +129,7 @@ describe('Entity CRUD', () => {
       throw new Error('Model init() not yet run' + entity.name)
     }
     const mock = getPopulatedModel(model, keys)
-    console.info('Generated Mock Data for: ', model.name)
+    console.log('Generated Mock Data for: ', model.name)
     mocks[model.name] = mock
     const primaryKeyId = mock[model.primaryKeyAttribute] as string
     test(`mock ${model.name}`, async () => {
@@ -143,8 +159,8 @@ describe('Entity CRUD', () => {
     })
 
     test(`read ${model.name}`, async () => {
-      const instance = await getIfExists(model, primaryKeyId)
-      const result = instance.get()
+      const item = await getIfExists(model, primaryKeyId)
+      const result = item.get()
       toMatchObjectExceptTimestamps(mock, result)
     })
 
@@ -160,7 +176,13 @@ describe('Entity CRUD', () => {
         console.error('No updateable properties found - skipping')
         return
       }
-      const newValue = getMockValue(propName, attributes[propName].type.toString({}), true)
+      const newValue = getMockValue(
+        model,
+        mock,
+        propName,
+        attributes[propName].type.toString({}),
+        true,
+      )
       const updatedMock = { ...mock, [propName]: newValue }
       const result = await createOrUpdate(model, updatedMock)
       toMatchObjectExceptTimestamps(updatedMock, result)

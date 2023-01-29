@@ -1,9 +1,11 @@
 import request from 'supertest'
-import createBackendApp from 'src/app'
-import { getRoutesFromApp } from 'src/shared/server'
+import createBackendApp from '../src/app'
+import { getRoutesFromApp } from '../src/shared/server'
+import { beforeAllHook } from './helpers'
 
+beforeAll(() => beforeAllHook())
 describe('server route checks', () => {
-  const app = createBackendApp({ checks: false, trace: true })
+  const app = createBackendApp({ checks: false, trace: false })
   const routes = getRoutesFromApp(app)
 
   test('should have at least one route', () => {

@@ -26,8 +26,9 @@ export interface BackendOptions {
 export function createBackendApp({ checks, trace }: BackendOptions = { checks: true }): BackendApp {
   const app = express() as BackendApp
 
-  if (trace) {
+  if (trace !== undefined) {
     config.trace = trace
+    config.db.trace = trace
   }
 
   if (!config.production && config.trace) {

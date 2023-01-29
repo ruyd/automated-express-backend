@@ -64,7 +64,9 @@ export class Connection {
       logger.error('DB URL not found, skipping DB init')
       return
     }
-    logger.info(`Initializing DB...`)
+    if (config.db.trace) {
+      logger.info(`Initializing DB...`)
+    }
     try {
       Connection.db = new Sequelize(config.db.url, {
         logging: sql => (config.db.trace ? logger.info(`${sql}\n`) : undefined),
@@ -182,7 +184,9 @@ export function addModel<T extends object>(
     onChanges,
   }
   Connection.entities.push(cfg)
-  logger.info(`Registered model ${name}`)
+  if (config.db.trace) {
+    logger.info(`Registered model ${name}`)
+  }
   return model
 }
 
