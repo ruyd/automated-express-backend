@@ -15,7 +15,8 @@
     "clean": "rm -rf node_modules dist",
     "prod": "docker compose up --wait && yarn tsc --build && yarn concurrently \"NODE_ENV=production yarn nodemon -r tsconfig-paths/register -q src/index.ts\" \"NODE_ENV=production yarn webpack watch\"",
     "cloud": "yarn build && NODE_ENV=production gcloud beta code dev --secrets=DB_URL=DB_URL:latest --allow-secret-manager",
-    "docker": "docker compose up --wait"
+    "docker": "docker compose up --wait",
+    "precommit": "yarn test"
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^4.2.0",

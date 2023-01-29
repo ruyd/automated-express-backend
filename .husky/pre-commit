@@ -1,11 +1,4 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-declare HAS_CHANGE=$(git show --name-only -r --stat --oneline HEAD^^..HEAD)
-declare TEST_CHANGE=$(git show --name-only -r --stat --oneline HEAD^^..HEAD | grep 'tests')
-
-if [ -n "$HAS_CHANGE" || -n "$TEST_CHANGE" ]; then
-  echo "Changes detected, running tests"
-fi
-
-yarn test
+yarn precommit
