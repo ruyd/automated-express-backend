@@ -8,7 +8,7 @@ import {
   ModelStatic,
   Sequelize,
 } from 'sequelize'
-import { config } from '../config'
+import { config } from '../config/index'
 import logger from '../logger'
 
 export const commonOptions: ModelOptions = {
@@ -41,19 +41,37 @@ export interface EntityConfig<M extends Model = Model> {
 }
 
 export function sortEntities(a: EntityConfig, b: EntityConfig): number {
+  if (a.name === 'user') {
+    return -1
+  }
+  if (b.name === 'user') {
+    return 1
+  }
   const primaryKeysA = Object.keys(a.attributes).filter(
     key => (a.attributes[key] as ModelAttributeColumnOptions).primaryKey,
   )
   const primaryKeysB = Object.keys(b.attributes).filter(
     key => (b.attributes[key] as ModelAttributeColumnOptions).primaryKey,
   )
-  if (primaryKeysA.some(key => b.attributes[key])) {
+  if (
+    Object.keys(b.attributes).some(
+      key =>
+        !(b.attributes[key] as ModelAttributeColumnOptions).primaryKey &&
+        primaryKeysA.includes(key),
+    )
+  ) {
     return -1
-  }
-  if (primaryKeysB.some(key => a.attributes[key])) {
+  } else if (
+    Object.keys(a.attributes).some(
+      key =>
+        !(a.attributes[key] as ModelAttributeColumnOptions).primaryKey &&
+        primaryKeysB.includes(key),
+    )
+  ) {
     return 1
+  } else {
+    return 0
   }
-  return 0
 }
 
 export class Connection {
@@ -232,8 +250,6 @@ export function addModel<T extends object>({
     onChanges,
     options,
   }
-  const test = Connection
-  console.log('class', test)
   Connection.entities.push(cfg)
   return model
 }

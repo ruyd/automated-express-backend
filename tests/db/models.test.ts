@@ -1,10 +1,12 @@
-import { describe, expect, test } from '@jest/globals'
-import { Connection, sortEntities } from '../../src/shared/db'
 import { ModelStatic, Model } from 'sequelize'
 import { v4 as uuid } from 'uuid'
-import createBackendApp from '../../src/app'
 import { createOrUpdate, deleteIfExists, getIfExists } from '../../src/shared/model-api/controller'
 import { beforeAllHook } from '../helpers'
+import createBackendApp from '../../src/app'
+const { Connection, sortEntities } = jest.requireActual(
+  '../../src/shared/db',
+) as typeof import('../../src/shared/db')
+
 jest.mock('../../src/shared/socket')
 
 const conversions: Record<string, string> = {
@@ -112,6 +114,9 @@ afterAll(() => {
   Connection.db.close()
 })
 describe('Entity CRUD', () => {
+  test('static class', () => {
+    expect(Connection).toBeTruthy()
+  })
   const app = createBackendApp({ checks: true, trace: false })
   test('startup', async () => {
     const checks = await app.onStartupCompletePromise
@@ -139,6 +144,7 @@ describe('Entity CRUD', () => {
     })
   }
 
+  // eslint-disable-next-line no-console
   console.log(
     'ready: ',
     sorted.map(e => e.name),
@@ -156,6 +162,7 @@ describe('Entity CRUD', () => {
 
     test(`create ${model.name}`, async () => {
       const result = await createOrUpdate(model, mock)
+      // eslint-disable-next-line no-console
       console.log('create result', result)
       toMatchObjectExceptTimestamps(mock, result)
     })
@@ -175,6 +182,7 @@ describe('Entity CRUD', () => {
         key => key !== model.primaryKeyAttribute && !foreignKeys.includes(key),
       )
       if (!propName) {
+        // eslint-disable-next-line no-console
         console.error('No updateable properties found - skipping')
         return
       }

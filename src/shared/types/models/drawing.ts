@@ -1,4 +1,4 @@
-import { addModel } from '../../db'
+import { addModel } from '../../db/index'
 import { DataTypes } from 'sequelize'
 import { Drawing } from '..'
 

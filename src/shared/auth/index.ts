@@ -71,17 +71,19 @@ const writeMethods = ['POST', 'PUT', 'PATCH', 'DELETE']
 async function getVerifyKey(settings: SettingState, kid: string) {
   const authProvider = settings?.system?.authProvider || AuthProviders.None
   switch (authProvider) {
-    case AuthProviders.Firebase:
+    case AuthProviders.Firebase: {
       const json = JSON.parse(settings?.internal?.secrets?.google?.serviceAccountJson || '{}')
       const key = json.private_key
       return key
-    default:
+    }
+    default: {
       const client = await getJwkClient()
       if (!client) {
         throw Error('No JWK client')
       }
       const result = await client.getSigningKey(kid)
       return result.getPublicKey()
+    }
   }
 }
 

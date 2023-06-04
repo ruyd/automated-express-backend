@@ -1,9 +1,11 @@
-import { checkMigrations } from '../../src/shared/db/migrator'
-import { beforeAllHook } from 'tests/helpers'
+// import { beforeAllHook } from 'tests/helpers'
 import createBackendApp from '../../src/app'
-import { Connection } from '../../src/shared/db'
+const { checkMigrations } = jest.requireActual('../../src/shared/db/migrator')
+const { Connection } = jest.requireActual(
+  '../../src/shared/db',
+) as typeof import('../../src/shared/db')
+// not supposed to be needed, check if this is a bug
 
-beforeAll(() => beforeAllHook())
 afterAll(() => {
   Connection.db.close()
 })
