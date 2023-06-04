@@ -1,12 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import express from 'express'
-import { Model, ModelStatic } from 'sequelize/types'
+import { Model, ModelStatic } from 'sequelize'
 import swaggerJsdoc, { OAS3Definition, Schema } from 'swagger-jsdoc'
 import config from '../config'
 import Connection, { EntityConfig } from '../db'
-import logger from '../logger'
 import { getRoutesFromApp } from '../server'
 import fs from 'fs'
+import logger from '../logger'
 
 const conversions: Record<string, string> = {
   INTEGER: 'number',
@@ -20,17 +19,32 @@ const conversions: Record<string, string> = {
   DATETIME: 'string',
   TIMESTAMP: 'string',
   TIME: 'string',
+  CHAR: 'string',
+  BOOLEAN: 'boolean',
+} as const
+
+const getConversion = (type: string): { type: string; items?: { type: string } } => {
+  if (type.endsWith('[]')) {
+    const arrayType = type.slice(0, type.indexOf('('))
+    return { type: 'array', items: { type: conversions[arrayType] || 'string' } }
+  }
+  const keys = Object.keys(conversions)
+  const key = keys.find(key => type.startsWith(key))
+  return {
+    type: key ? conversions[key] : 'string',
+  }
 }
 
 export function getSchema(model: ModelStatic<Model>) {
   const excluded = ['createdAt', 'updatedAt', 'deletedAt']
-  const columns = Object.entries(model.getAttributes()).filter(
-    ([name]) => !excluded.includes(name),
-  ) as [[string, { type: string; allowNull: boolean }]]
+  const obj = model.name === 'model' ? {} : model.getAttributes()
+  const columns = Object.entries(obj).filter(([name]) => !excluded.includes(name)) as [
+    [string, { type: string; allowNull: boolean }],
+  ]
   const properties: { [key: string]: Schema } = {}
   for (const [name, attribute] of columns) {
-    const type: string = conversions[attribute.type] || 'string'
-    const definition: Schema = attribute.allowNull ? { type, required: true } : { type }
+    const { type, items } = getConversion(attribute.type.toString())
+    const definition: Schema = { type, required: !!attribute.allowNull, items }
     properties[name] = definition
   }
   return {
@@ -48,6 +62,12 @@ export function getPaths(model: typeof Model) {
       get: {
         summary: 'Get list',
         security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: 'include',
+            in: 'query',
+          },
+        ],
         responses: {
           '200': {
             content: {
@@ -170,40 +190,117 @@ export function applyEntitiesToSwaggerDoc(entities: EntityConfig[], swaggerDoc: 
     return
   }
   for (const entity of entities) {
-    const model = entity.model as ModelStatic<Model>
-    const schema = getSchema(model)
+    const schema = getSchema(entity.model as ModelStatic<Model>)
     if (!swaggerDoc?.components?.schemas) {
       if (!swaggerDoc.components) {
         swaggerDoc.components = {}
       }
       swaggerDoc.components.schemas = {}
     }
-    const existingSchema = swaggerDoc?.components?.schemas[model.name]
+    const existingSchema = swaggerDoc?.components?.schemas[entity.name]
     if (!existingSchema) {
-      swaggerDoc.components.schemas[model.name] = schema
+      swaggerDoc.components.schemas[entity.name] = schema
     }
     if (!swaggerDoc.paths) {
       swaggerDoc.paths = {}
     }
-    const paths = getPaths(model)
+    const paths = getPaths(entity.model as ModelStatic<Model>)
     for (const p in paths) {
       const existingPath = swaggerDoc.paths[p]
       if (!existingPath) {
         swaggerDoc.paths[p] = paths[p]
       }
     }
+
+    // join auto tables, move to function
+    const autoTables =
+      entity.joins
+        ?.filter(a => typeof a.through === 'string')
+        .map(join => join.through as string) ?? []
+    for (const autoTable of autoTables) {
+      const autoModel = Connection.db.models[autoTable]
+      if (!autoModel) {
+        logger.error(`Could not find auto model ${autoTable}`)
+        continue
+      }
+      const schema = getSchema(autoModel)
+      if (!swaggerDoc?.components?.schemas) {
+        if (!swaggerDoc.components) {
+          swaggerDoc.components = {}
+        }
+        swaggerDoc.components.schemas = {}
+      }
+      const existingSchema = swaggerDoc?.components?.schemas[autoModel.name]
+      if (!existingSchema) {
+        swaggerDoc.components.schemas[autoModel.name] = schema
+      }
+      if (!swaggerDoc.paths) {
+        swaggerDoc.paths = {}
+      }
+      const paths = getPaths(autoModel)
+      for (const p in paths) {
+        const existingPath = swaggerDoc.paths[p]
+        if (!existingPath) {
+          swaggerDoc.paths[p] = paths[p]
+        }
+      }
+    }
   }
+}
+
+export function getParameters(method: string, path: string) {
+  const params = [...path.matchAll(/{\w+}/g)]
+  const parameters = params.map(([name]) => ({
+    name: name.replace(/[{}]/g, ''),
+    in: 'path',
+    schema: {
+      type: 'string',
+    },
+  }))
+
+  return ['post', 'put', 'patch', 'delete'].includes(method)
+    ? {
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+              },
+            },
+          },
+        },
+        parameters,
+      }
+    : {
+        parameters,
+      }
 }
 
 export function applyRoutes(app: express.Application, swaggerDoc: OAS3Definition) {
   const paths = swaggerDoc.paths || {}
+
   const routes = getRoutesFromApp(app).filter(r => r.from === 'controller')
   for (const route of routes) {
-    if (!paths[route.path]) paths[route.path] = {}
-    const def = paths[route.path]
-    for (const method of route.methods) {
-      if (!def[method]) {
-        def[method] = { summary: 'Detected' }
+    const rawPaths = Array.isArray(route.path) ? route.path : [route.path]
+    const convertedPaths = rawPaths.map(p =>
+      p.replace(/:\w+/g, (match: string) => `{${match.substring(1)}}`),
+    )
+    for (const path of convertedPaths) {
+      if (!paths[path]) {
+        paths[path] = {}
+      }
+      const def = paths[path]
+      const tags = path.split('/')[1] ? [path.split('/')[1]] : []
+      const security = [{ BearerAuth: [] }]
+      for (const method of route.methods) {
+        if (!def[method]) {
+          def[method] = {
+            ...getParameters(method, path),
+            summary: 'Detected',
+            tags,
+            security,
+          }
+        }
       }
     }
   }
@@ -222,12 +319,6 @@ export function prepareSwagger(app: express.Application, entities: EntityConfig[
   const swaggerDoc = { ...swaggerDev, ...swaggerProd }
 
   applyRoutes(app, swaggerDoc)
-
-  if (config.trace) {
-    logger.info('***** Swagger Paths *****')
-    // eslint-disable-next-line no-console
-    console.table(Object.keys(swaggerDoc?.paths || {}))
-  }
 
   applyEntitiesToSwaggerDoc(entities, swaggerDoc)
 

@@ -1,5 +1,6 @@
 import {
   Attributes,
+  InitOptions,
   Model,
   ModelAttributeColumnOptions,
   ModelAttributes,
@@ -15,10 +16,16 @@ export const commonOptions: ModelOptions = {
   underscored: true,
 }
 export interface Join {
-  relation: 'belongsTo' | 'hasOne' | 'hasMany' | 'belongsToMany'
-  model: ModelStatic<Model>
-  as: string
-  foreignKey: string
+  type: 'belongsTo' | 'hasOne' | 'hasMany' | 'belongsToMany'
+  target: ModelStatic<Model>
+  as?: string
+  foreignKey?: string
+  otherKey?: string
+  through?: ModelStatic<Model> | string
+}
+
+export type EntityDefinition<T extends object> = {
+  [key in keyof T]: ModelAttributeColumnOptions<Model<T>>
 }
 
 export interface EntityConfig<M extends Model = Model> {
@@ -29,6 +36,7 @@ export interface EntityConfig<M extends Model = Model> {
   publicWrite?: boolean
   model?: ModelStatic<M>
   joins?: Join[]
+  options?: Partial<InitOptions<M>>
   onChanges?: (source?: string, model?: M) => Promise<void> | void
 }
 
@@ -53,13 +61,17 @@ export class Connection {
   public static db: Sequelize
   static initialized = false
   static init() {
+    if (Connection.initialized) {
+      logger.warn('Connection already initialized')
+      return
+    }
     const checkRuntime = config
     if (!checkRuntime) {
       throw new Error(
         'Connection Class cannot read config, undefined variable - check for cyclic dependency',
       )
     }
-    if (!config.db.url || !config.db.name) {
+    if (!config.db.url || !config.db.database) {
       logger.error('DB URL not found, skipping DB init')
       return
     }
@@ -83,7 +95,10 @@ export class Connection {
       logger.error('Error initializing DB', error)
       return
     }
-    Connection.initModels()
+    const sorted = Connection.entities.sort(sortEntities)
+    Connection.initModels(sorted)
+    Connection.initJoins(sorted)
+    Connection.autoDetectJoins(sorted)
     Connection.initialized = true
   }
 
@@ -99,56 +114,89 @@ export class Connection {
     const associations = others.filter(related => primaryKeys.some(key => related.attributes[key]))
     return associations
   }
-  static initModels() {
-    const sorted = Connection.entities.sort(sortEntities)
+  static initModels(sorted: EntityConfig[]) {
     for (const entity of sorted) {
-      const scopedOptions = { ...commonOptions, sequelize: Connection.db, modelName: entity.name }
+      const scopedOptions = {
+        ...commonOptions,
+        ...entity.options,
+        sequelize: Connection.db,
+        modelName: entity.name,
+      }
       if (!entity.model) {
-        logger.error(`Model ${entity.name} not found`)
+        logger.error(`Entity without model: ${entity.name}`)
         continue
       }
-      entity.model.init(entity.attributes, scopedOptions)
-    }
-    for (const entity of sorted) {
-      Connection.initJoins(entity)
+      if (entity.model.name === 'model') {
+        entity.model.init(entity.attributes, scopedOptions)
+      }
     }
   }
-  static initJoins(entity: EntityConfig) {
-    if (!entity?.model) {
-      return
-    }
-    // Passed joins
-    for (const join of entity.joins || []) {
-      entity.model[join.relation](join.model, {
-        through: join.model,
-        as: join.as as string,
-        foreignKey: join.foreignKey as string,
-      })
-    }
-    // Detect joins based on column names
-    const otherModels = Connection.entities.filter(e => e.name !== entity.name)
-    for (const related of otherModels) {
-      if (related.model?.name === 'model') {
-        throw new Error('model not initialized for' + related.name)
+  static initJoins(sorted: EntityConfig[]) {
+    for (const entity of sorted) {
+      if (!entity?.model) {
+        return
       }
-      const relatedColumns = Object.keys(related.attributes).filter(
-        key => (related.attributes[key] as ModelAttributeColumnOptions).primaryKey,
-      )
-      for (const relatedColumnPk of relatedColumns) {
-        if (relatedColumnPk.endsWith('Id') && entity.attributes[relatedColumnPk]) {
-          entity.model.belongsTo(related.model as ModelStatic<Model>, {
-            foreignKey: relatedColumnPk,
-            onDelete: 'CASCADE',
-          })
-          const propName = entity.model.tableName.replace(related.model?.name + '_', '')
-          related.model?.hasMany(entity.model, {
-            foreignKey: relatedColumnPk,
-            as: propName,
-          })
+      const joins = entity.joins ?? []
+      for (const join of joins) {
+        entity.model[join.type](join.target as ModelStatic<Model>, {
+          foreignKey: join.foreignKey as string,
+          otherKey: join.otherKey as string,
+          through: join.through as ModelStatic<Model>,
+          as: join.as as string,
+        })
+      }
+    }
+  }
+
+  /**
+   * Detect joins based on fieldId naming convention
+   * */
+  static autoDetectJoins(sorted: EntityConfig[]) {
+    for (const entity of sorted) {
+      if (!entity?.model) {
+        return
+      }
+      const otherModels = Connection.entities.filter(e => e.name !== entity.name)
+      for (const other of otherModels) {
+        if (entity.model.associations[other.name]) {
+          continue
+        }
+        const otherPrimaryKeys = Object.keys(other.attributes).filter(
+          key => (other.attributes[key] as ModelAttributeColumnOptions).primaryKey,
+        )
+        for (const otherPrimaryKey of otherPrimaryKeys) {
+          const columnDef = entity.attributes[otherPrimaryKey] as ModelAttributeColumnOptions
+          if (otherPrimaryKey.endsWith('Id') && columnDef && !columnDef.primaryKey) {
+            entity.model.belongsTo(other.model as ModelStatic<Model>, {
+              foreignKey: otherPrimaryKey,
+              onDelete: 'CASCADE',
+            })
+            other.model?.hasMany(entity.model, {
+              foreignKey: otherPrimaryKey,
+            })
+          }
         }
       }
     }
   }
+}
+
+export async function createDatabase(): Promise<boolean> {
+  logger.info('Database does not exist, creating...')
+
+  const rootUrl = config.db.url.replace(config.db.database, 'postgres')
+  const root = new Sequelize(rootUrl)
+  const qi = root.getQueryInterface()
+  try {
+    await qi.createDatabase(config.db.database)
+    logger.info('Database created: ' + config.db.database)
+    await Connection.db.sync()
+    logger.info('Tables created')
+  } catch (e: unknown) {
+    logger.warn('Database creation failed: ' + JSON.stringify(e), e)
+    return false
+  }
+  return true
 }
 
 /**
@@ -162,15 +210,16 @@ export class Connection {
  * @param publicWrite - POST, PUT, PATCH (no token needed)
  * @returns Typed model class reference with methods/utilities
  */
-export function addModel<T extends object>(
-  name: string,
-  attributes: ModelAttributes<Model<T>, Attributes<Model<T>>>,
-  joins?: Join[],
-  roles?: string[],
-  publicRead?: boolean,
-  publicWrite?: boolean,
-  onChanges?: (source?: string, model?: Model<T>) => Promise<void> | void,
-): ModelStatic<Model<T, T>> {
+export function addModel<T extends object>({
+  name,
+  attributes,
+  joins,
+  roles,
+  publicRead,
+  publicWrite,
+  onChanges,
+  options,
+}: EntityConfig<Model<T>>): ModelStatic<Model<T, T>> {
   const model = class extends Model {}
   const cfg: EntityConfig = {
     name,
@@ -181,30 +230,12 @@ export function addModel<T extends object>(
     publicRead,
     publicWrite,
     onChanges,
+    options,
   }
+  const test = Connection
+  console.log('class', test)
   Connection.entities.push(cfg)
-  if (config.db.trace) {
-    logger.info(`Registered model ${name}`)
-  }
   return model
-}
-
-export async function createDatabase(): Promise<boolean> {
-  logger.info('Database does not exist, creating...')
-
-  const rootUrl = config.db.url.replace(config.db.name, 'postgres')
-  const root = new Sequelize(rootUrl)
-  const qi = root.getQueryInterface()
-  try {
-    await qi.createDatabase(config.db.name)
-    logger.info('Database created: ' + config.db.name)
-    await Connection.db.sync()
-    logger.info('Tables created')
-  } catch (e: unknown) {
-    logger.warn('Database creation failed: ' + JSON.stringify(e), e)
-    return false
-  }
-  return true
 }
 
 export default Connection

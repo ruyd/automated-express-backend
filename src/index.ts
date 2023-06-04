@@ -1,9 +1,8 @@
-import { createServer } from 'http'
-import { createServer as createServerHttps } from 'https'
 import config, { canStart } from './shared/config'
 import logger from './shared/logger'
 import createBackendApp from './app'
 import { registerSocket } from './shared/socket'
+import { createServerService } from './shared/server'
 ;(() => {
   if (!canStart()) {
     const m = 'No PORT specified: Shutting down - Environment variables undefined'
@@ -16,7 +15,7 @@ import { registerSocket } from './shared/socket'
   const title = config.swaggerSetup.info?.title
 
   // Start server
-  const server = config.certFile ? createServerHttps(app) : createServer(app)
+  const server = createServerService(app)
   registerSocket(server)
 
   server.listen(config.port, () =>

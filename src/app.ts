@@ -7,13 +7,11 @@ import { registerModelApiRoutes } from './shared/model-api/routes'
 import { errorHandler } from './shared/errorHandler'
 import cors from 'cors'
 import api from './routes'
-import { activateAxiosTrace, endpointTracingMiddleware, printRouteSummary } from './shared/logger'
-import { authProviderAutoConfigure } from './shared/auth/sync'
+import { activateAxiosTrace, endpointTracingMiddleware, printRouteSummary } from './shared/trace'
 import { Connection } from './shared/db'
-import { modelAuthMiddleware } from './shared/auth'
-import { loadSettingsAsync } from './shared/settings'
-import { homepage } from './shared/server'
 import { checkDatabase } from './shared/db/check'
+import { modelAuthMiddleware } from './shared/auth'
+import { homepage } from './shared/server'
 
 export interface BackendApp extends express.Express {
   onStartupCompletePromise: Promise<boolean[]>
@@ -38,16 +36,9 @@ export function createBackendApp({ checks, trace }: BackendOptions = { checks: t
 
   // Startup
   Connection.init()
-  const promises = [
-    checks
-      ? checkDatabase()
-          .then(async ok => (ok ? await loadSettingsAsync() : ok))
-          .then(async ok => (ok ? await authProviderAutoConfigure() : ok))
-      : Promise.resolve(true),
-  ]
+  const promises = [checks ? checkDatabase() : Promise.resolve(true)]
 
-  // Add Middlewares - Order is important
-  app.use(errorHandler)
+  // Add Middlewares
   app.use(cors())
   app.use(express.json({ limit: config.jsonLimit }))
   app.use(
@@ -59,8 +50,8 @@ export function createBackendApp({ checks, trace }: BackendOptions = { checks: t
   app.use(modelAuthMiddleware)
 
   // Add Routes
-  app.use(api)
   registerModelApiRoutes(Connection.entities, api)
+  app.use(api)
 
   const swaggerDoc = prepareSwagger(app, Connection.entities)
   app.use(
@@ -79,6 +70,8 @@ export function createBackendApp({ checks, trace }: BackendOptions = { checks: t
   printRouteSummary(app)
 
   app.get('/', homepage)
+
+  app.use(errorHandler)
 
   return app
 }

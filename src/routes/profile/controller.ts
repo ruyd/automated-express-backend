@@ -7,6 +7,7 @@ import {
   lazyLoadManagementToken,
   authProviderPatch,
   decodeToken,
+  getAuthSettingsAsync,
 } from '../../shared/auth'
 import { createOrUpdate } from '../../shared/model-api/controller'
 import { UserModel } from '../../shared/types/models/user'
@@ -14,34 +15,42 @@ import { AppAccessToken, IdentityToken } from '../../shared/types'
 import { v4 as uuid } from 'uuid'
 import { decode } from 'jsonwebtoken'
 import logger from '../../shared/logger'
-import { config } from '../../shared/config'
 import { EnrichedRequest } from '../../shared/types'
-import { getPictureMock } from '../../shared/util'
+import { firebaseCreateToken } from 'src/shared/auth/firebase'
+import { getPictureMock } from 'src/shared/util'
 
 export async function register(req: express.Request, res: express.Response) {
   const payload = req.body
   if (!payload) {
     throw new Error('Missing payload')
   }
+  const { enableRegistration, startAdminEmail } = await getAuthSettingsAsync()
+  const isStartAdmin = payload.email === startAdminEmail
+
+  if (!enableRegistration) {
+    throw new Error('Registration is disabled')
+  }
 
   const existing = await UserModel.findOne({ where: { email: payload.email } })
   if (existing) {
-    throw new Error('Email already exists')
+    throw new Error('Email already registered, try Sign-in')
   }
-
-  payload.userId = uuid()
-  const providerResult = await authProviderRegister(payload)
+  const userId = uuid()
+  setPictureIfEmpty(payload)
+  const providerData = { ...payload, uid: userId }
+  const providerResult = await authProviderRegister(providerData)
   if (providerResult.error) {
     throw new Error(providerResult.error_description)
   }
 
-  setPictureIfEmpty(payload)
+  payload.userId = userId
+  payload.roles = isStartAdmin ? ['admin'] : []
   const user = await createOrUpdate(UserModel, payload)
-  const token = createToken({
-    user,
-    roles: [],
+  const token = await firebaseCreateToken(user.userId, {
+    roles: user.roles || [],
   })
-  res.json({ token })
+
+  res.json({ token, user })
 }
 
 /**
@@ -49,7 +58,14 @@ export async function register(req: express.Request, res: express.Response) {
  * allow offline mode
  */
 export async function login(req: express.Request, res: express.Response) {
-  const { email, password } = req.body
+  const { email: bodyEmail, password, idToken } = req.body
+  if (!password && !idToken) {
+    throw new Error('Missing inputs invalid login request')
+  }
+  const tokenEmail = decodeToken(idToken)?.email
+  const email = bodyEmail || tokenEmail
+  const { startAdminEmail, isDevelopment, isNone } = await getAuthSettingsAsync()
+  const isStartAdmin = email === startAdminEmail
 
   let user = (
     await UserModel.findOne({
@@ -57,26 +73,30 @@ export async function login(req: express.Request, res: express.Response) {
     })
   )?.get()
 
-  if (!config.auth.enabled && user) {
-    logger.warn('Auth not enabled - dev mode no password login: ' + user?.email)
+  if ((isDevelopment && user) || (isNone && isStartAdmin)) {
+    logger.warn('Mocking login without pass for: ' + email)
     res.json({
       token: createToken({
-        user,
-        roles: config.settings?.internal?.startAdminEmail === user.email ? ['admin'] : [],
+        userId: user?.userId,
+        roles: isStartAdmin ? ['admin'] : [],
       }),
       user,
     })
     return
   }
 
-  const response = await authProviderLogin(email, password)
+  if (isNone) {
+    throw new Error('User logins have been disabled - Please contact administrator')
+  }
+
+  const response = await authProviderLogin({ email, password, idToken })
   if (response.error) {
     throw new Error(response.error_description)
   }
 
   if (!user) {
-    const decoded = decode(response.access_token) as AppAccessToken
-    user = await createOrUpdate(UserModel, { email, userId: decoded.userId })
+    const decoded = decode(response.access_token as string) as AppAccessToken
+    user = await createOrUpdate(UserModel, { email, userId: decoded.uid })
   }
 
   if (!user) {
@@ -90,16 +110,13 @@ export async function login(req: express.Request, res: express.Response) {
 }
 
 /**
- * Create Email DB record if it doesn't exist
- * Update profile metadata with userId
- * Reissue access_token with userId (or client?)
- * auth0-node.socialLogin() better?
- * @param req access_token, id_token
+ * reviewing, auth0 only
+ * @param req
+ * @param res
  */
 export async function social(req: express.Request, res: express.Response) {
   logger.info('Social login', req.body)
   const { idToken, accessToken } = req.body
-  //validate tocket instead of just decode?
   const access = decodeToken(accessToken)
   const decoded = decode(idToken) as IdentityToken
   const { email, given_name, family_name, picture } = decoded
@@ -144,17 +161,19 @@ export async function social(req: express.Request, res: express.Response) {
   }
 
   let renew = false
-  if (access.userId !== user.userId) {
-    logger.info('Updating metadata userId', access.userId, user.userId)
-    await lazyLoadManagementToken()
-    const response = await authProviderPatch(access.sub, {
-      connection: 'google-oauth2',
-      user_metadata: {
-        id: user.userId,
-      },
-    })
-    logger.info('success' + JSON.stringify(response))
-    renew = true
+  if (access.uid !== user.userId) {
+    const ok = await lazyLoadManagementToken()
+    if (ok) {
+      logger.info('Updating metadata userId', access.uid, user.userId)
+      const response = await authProviderPatch(access.sub, {
+        connection: 'google-oauth2',
+        user_metadata: {
+          id: user.userId,
+        },
+      })
+      logger.info('success' + JSON.stringify(response))
+      renew = true
+    }
   }
 
   res.json({
@@ -199,7 +218,7 @@ export async function edit(req: express.Request, res: express.Response) {
     throw new Error('Missing payload')
   }
   const auth = (req as EnrichedRequest).auth as AppAccessToken
-  payload.userId = auth.userId
+  payload.userId = auth.uid
   const user = await createOrUpdate(UserModel, payload)
   res.json({ user })
 }

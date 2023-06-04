@@ -1,13 +1,31 @@
 import os from 'os'
 import { OAS3Definition } from 'swagger-jsdoc'
-import packageJson from '../../package.json'
-import appConfig from '../../config/app.json'
-import logger from './logger'
+import packageJson from '../../../package.json'
+import appConfig from './app.json'
+import logger from '../logger'
 import dotenv from 'dotenv'
-import { SettingData, SettingType } from './types'
 
 // Anti-webpack sorcery
 const env = process['env']
+
+export interface DBUrl {
+  dialect?: string
+  username?: string
+  password?: string
+  host: string
+  database: string
+  ssl: boolean
+  schema: string
+}
+
+export interface DBConfig extends DBUrl {
+  trace: boolean
+  url: string
+  sync: boolean
+  force: boolean
+  alter: boolean
+  models: string[]
+}
 
 export interface Config {
   isLocalhost: boolean
@@ -18,23 +36,12 @@ export interface Config {
   protocol: string
   backendBaseUrl: Readonly<string>
   jsonLimit: string
-  certFile?: string
-  certKeyFile?: string
+  sslKey?: string
+  sslCert?: string
   cors: {
     origin: string
   }
-  db: {
-    trace: boolean
-    name: string
-    url: string
-    host: string
-    schema: string
-    ssl: boolean
-    sync: boolean
-    force: boolean
-    alter: boolean
-    models: string[]
-  }
+  db: DBConfig
   auth: {
     enabled: boolean
     sync: boolean
@@ -55,9 +62,6 @@ export interface Config {
     manageToken?: string
   }
   swaggerSetup: Partial<OAS3Definition>
-  settings: {
-    [K in SettingType]?: SettingData[K]
-  }
 }
 
 export function parseDatabaseConfig(
@@ -65,12 +69,12 @@ export function parseDatabaseConfig(
   db: { url: string | null; ssl: boolean; schema: string },
 ) {
   if (!production) {
-    return db
+    return db as unknown as DBUrl
   }
   const url = env.DB_URL || (envi(db.url) as string)
   if (!url) {
     logger.error('DB_URL is not set')
-    return db
+    return db as unknown as DBUrl
   }
   const database = url.slice(url.lastIndexOf('/') + 1)
   const regex = /(\w+):\/\/(\w+):(.*)@(.*):(\d+)\/(\w+)/
@@ -87,7 +91,7 @@ export function parseDatabaseConfig(
     dialect,
     ssl: db.ssl,
     schema: db.schema,
-  } as Record<string, unknown>
+  } as DBUrl
 }
 
 export function getConfig(): Config {
@@ -106,6 +110,8 @@ export function getConfig(): Config {
   const port = Number(env.PORT) || Number(envi(serviceConfig.service.port))
   const hostname = envi(serviceConfig.service.host) as string
   const protocol = envi(serviceConfig.service.protocol) as string
+  const sslKey = envi(serviceConfig.service.sslKey) as string
+  const sslCert = envi(serviceConfig.service.sslCert) as string
 
   return {
     trace: true,
@@ -114,8 +120,8 @@ export function getConfig(): Config {
     hostname,
     protocol,
     backendBaseUrl: `${protocol}://${hostname}:${port}`,
-    certFile: env.SSL_CRT_FILE,
-    certKeyFile: env.SSL_KEY_FILE,
+    sslKey,
+    sslCert,
     port,
     jsonLimit: env.JSON_LIMIT || '1mb',
     cors: {
@@ -126,7 +132,7 @@ export function getConfig(): Config {
       sync: true,
       force: false,
       alter: true,
-      name: database as string,
+      database,
       host: host as string,
       url: DB_URL as string,
       schema: schema as string,
@@ -134,7 +140,7 @@ export function getConfig(): Config {
       models: [],
     },
     auth: {
-      enabled: false,
+      enabled: true,
       sync: true,
       trace: true,
       tokenSecret: env.TOKEN_SECRET || 'blank',
@@ -165,15 +171,7 @@ export function getConfig(): Config {
       ],
       basePath: '/docs',
     },
-    settings: {},
   }
-}
-
-export function getLimitedEnv() {
-  return appConfig.envConcerns.reduce((acc: { [key: string]: unknown }, key: string) => {
-    acc[key] = env[key]
-    return acc
-  }, {})
 }
 
 export function envi(val: unknown): unknown {
@@ -182,26 +180,19 @@ export function envi(val: unknown): unknown {
 
 export function canStart() {
   logger.info(`****** READYNESS CHECK *******`)
-  // logger.info(`env.PORT: ${env.PORT} ⚡️`)
   const p = config.port
-  const d = config.db.name
+  const d = config.db.database
   const result = !!p
   logger.info(`PRODUCTION: ${config.production}`)
   logger.info(`URL: ${config.backendBaseUrl}`)
   logger.info(`${p ? '✅' : '❌'} PORT: ${p ? p : 'ERROR - Missing'}`)
   logger.info(
-    `${d ? '✅' : '❌'} DB: ${d ? `${config.db.name}@${config.db.host}` : 'ERROR - Missing'}`,
+    `${d ? '✅' : '❌'} DB: ${d ? `${config.db.database}@${config.db.host}` : 'ERROR - Missing'}`,
   )
   logger.info(`**: ${result ? 'READY!' : 'HALT'}`)
+  logger.info(`env.PORT: ${env.PORT} ⚡️`)
   return result
 }
-export class Backend {
-  static config: Config = {} as Config
-  static canStart = false
-  static init() {
-    Backend.config = getConfig()
-    Backend.canStart = canStart()
-  }
-}
+
 export const config: Config = getConfig()
 export default config

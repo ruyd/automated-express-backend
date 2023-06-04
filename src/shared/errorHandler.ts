@@ -8,6 +8,7 @@ export interface HttpErrorParams {
   data?: unknown
   status?: number
   stack?: string
+  code?: string
 }
 
 export class HttpError extends Error {
@@ -73,32 +74,31 @@ export class HttpBadRequestError extends HttpError {
   }
 }
 
-export type HttpErrorResponse = Required<
-  Pick<HttpErrorParams, 'status' | 'message'> & { code: string }
-> &
-  Pick<HttpErrorParams, 'data' | 'stack'>
-
 export function errorHandler(
   err: HttpError,
   req: Request,
   res: Response,
   next: NextFunction,
 ): void {
-  const response: HttpErrorResponse = {
-    status: err.status,
+  const result = {
+    status: err.status || 500,
     code: err.name,
     message: err.message,
+    error: err.message,
     data: err.data,
-    stack: err.stack,
+    stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
   }
 
   logger.error(
-    `Client with IP="${req.ip}" failed to complete request to="${req.method}" originating from="${req.originalUrl}". Status="${response.status}" Message="${err.message}"`,
+    `Client with IP="${req.ip}" failed to complete request to="${req.method}" originating from="${req.originalUrl}". Status="${result.status}" Message="${err.message}"`,
     err,
   )
 
-  res.status(response.status)
-  res.json(response)
+  if (!res.headersSent) {
+    res.status(result.status)
+  }
 
-  next()
+  res.json(result)
+
+  next(err)
 }

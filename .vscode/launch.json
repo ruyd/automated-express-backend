@@ -12,7 +12,7 @@
       "cwd": "${workspaceRoot}"
     },
     {
-      "command": "yarn jest ${fileBasename}",
+      "command": "yarn jest ${fileBasename} --watch --runInBand --bail",
       "name": "jest $file",
       "request": "launch",
       "type": "node-terminal",

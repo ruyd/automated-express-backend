@@ -1,37 +1,21 @@
 import express from 'express'
-import { JwtPayload } from 'jsonwebtoken'
 import { EntityConfig } from '../db'
-import { Cart } from './cart'
-export * from './models'
+import { Order } from './order'
+import { Wallet } from './wallet'
+import { AppAccessToken } from './auth'
+
 export * from './cart'
 export * from './drawing'
 export * from './order'
 export * from './setting'
 export * from './user'
-
-export interface Jwt {
-  [key: string]: unknown
-  iss?: string | undefined
-  sub?: string | undefined
-  aud?: string | string[] | undefined
-  exp?: number | undefined
-  nbf?: number | undefined
-  iat?: number | undefined
-  jti?: string | undefined
-}
-
-export interface AppAccessToken extends JwtPayload {
-  userId: string
-  roles: string[]
-}
-
-export interface IdentityToken extends Jwt {
-  picture?: string | undefined
-  email: string
-  name: string
-  given_name: string
-  family_name: string
-}
+export * from './subscription'
+export * from './product'
+export * from './wallet'
+export * from './auth'
+export * from './item'
+export * from './category'
+export * from './models'
 
 /**
  * Common Model Options
@@ -58,11 +42,17 @@ export interface GridPatchProps {
 }
 
 export interface CheckoutRequest {
-  items: Cart[]
-  intent?: string
+  ids: { cartId?: string; productId?: string; drawingId?: string }[]
+  intent?: { amount: number; currency: string }
   confirmation?: string
   shippingAddressId?: string
-  paymentMethodId?: string
+  paymentSource?: string
+}
+
+export interface CheckoutResponse {
+  order: Order
+  error: string
+  wallet?: Wallet
 }
 
 export type EnrichedRequest = express.Request & {

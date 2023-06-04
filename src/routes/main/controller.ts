@@ -5,8 +5,7 @@ import { list } from '../../shared/model-api/controller'
 import { DrawingModel, EnrichedRequest, SettingModel, UserModel } from '../../shared/types'
 import { v4 as uuid } from 'uuid'
 import { createToken } from '../../shared/auth'
-import config from 'src/shared/config'
-import { loadSettingsAsync, getClientConfigSettings } from 'src/shared/settings'
+import { getClientSettings } from '../../shared/settings'
 import { SystemSettings } from '../../shared/types'
 
 export async function start(req: express.Request, res: express.Response) {
@@ -53,9 +52,6 @@ export async function start(req: express.Request, res: express.Response) {
     return
   }
 
-  //if statefull
-  config.settings.system = systemSetting.data as SystemSettings
-
   let user = (await UserModel.findOne({ where: { email: req.body.email } }))?.get()
   if (!user) {
     user = (
@@ -91,8 +87,7 @@ export async function gallery(req: express.Request, res: express.Response) {
 export async function sendClientConfigSettings(req?: express.Request, res?: express.Response) {
   const user = (req as EnrichedRequest).auth
   const isAdmin = user?.roles?.includes('admin')
-  await loadSettingsAsync() // stateless, add config for statefull, to skip stuff like this on VMs
-  const payload = await getClientConfigSettings(isAdmin)
+  const payload = await getClientSettings(isAdmin)
   res?.json(payload)
   return payload
 }

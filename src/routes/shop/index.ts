@@ -1,14 +1,15 @@
 import express from 'express'
-import { checkout } from './controller'
+import { addSubscriptionToCart, checkout } from './controller'
+import { capturePaymentHandler, createOrderHandler } from './paypal'
 
 const router = express.Router()
 
-/**
- * @swagger
- * /checkout:
- *  post:
- *   tags: [shop]
- */
 router.post('/shop/checkout', checkout)
+
+router.post('/shop/subscribe', addSubscriptionToCart)
+
+router.post('/paypal/order', createOrderHandler)
+
+router.post('/paypal/orders/:orderID/capture', capturePaymentHandler)
 
 export default router

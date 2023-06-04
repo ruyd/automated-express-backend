@@ -1,4 +1,6 @@
 import express from 'express'
+import { createServer } from 'http'
+import { createServer as createServerHttps } from 'https'
 import config from './config'
 export interface ExpressStack {
   name: string | string[]
@@ -22,11 +24,6 @@ export interface End {
   from: string
 }
 
-/**
- * TODO: Move Swagger Generation to use this
- * @param app
- * @returns
- */
 export function getRoutesFromApp(app: express.Application) {
   const composite = app._router.stack.find((s: ExpressStack) => s.name === 'router') as ExpressStack
   const recurse = (list: ExpressStack[], level = 0): End[] => {
@@ -63,4 +60,18 @@ export function homepage(req: express.Request, res: express.Response) {
     ⚡️[server]: Backend is running on ${req.headers.host} with <a href="${config.swaggerSetup.basePath}">SwaggerUI Admin at ${config.swaggerSetup.basePath}</a>
     </div>
     </body></html>`)
+}
+
+export function createServerService(app: express.Application) {
+  const server =
+    config.protocol === 'https'
+      ? createServerHttps(
+          {
+            key: config.sslKey,
+            cert: config.sslCert,
+          },
+          app,
+        )
+      : createServer(app)
+  return server
 }

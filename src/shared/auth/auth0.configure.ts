@@ -28,7 +28,7 @@ const post = <T>(url: string, data: unknown) =>
  * - Check for Client Grants
  * - Check for Rules
  */
-export async function authProviderAutoConfigure(): Promise<boolean> {
+export async function auth0AutoConfigure(): Promise<boolean> {
   logger.info('Auth0: Sync()')
   if (process.env.NODE_ENV === 'test') {
     logger.info('Auth0: Skipped for Tests')

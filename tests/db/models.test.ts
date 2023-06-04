@@ -1,10 +1,10 @@
 import { describe, expect, test } from '@jest/globals'
-import { Connection, sortEntities } from 'src/shared/db'
+import { Connection, sortEntities } from '../../src/shared/db'
 import { ModelStatic, Model } from 'sequelize'
 import { v4 as uuid } from 'uuid'
-import createBackendApp from 'src/app'
-import { createOrUpdate, deleteIfExists, getIfExists } from 'src/shared/model-api/controller'
-import { beforeAllHook } from 'tests/helpers'
+import createBackendApp from '../../src/app'
+import { createOrUpdate, deleteIfExists, getIfExists } from '../../src/shared/model-api/controller'
+import { beforeAllHook } from '../helpers'
 jest.mock('../../src/shared/socket')
 
 const conversions: Record<string, string> = {
@@ -22,7 +22,7 @@ const conversions: Record<string, string> = {
   ['TIMESTAMP WITH TIME ZONE']: 'date',
 }
 
-const excluded = ['createdAt', 'updatedAt', 'deletedAt', 'audienceIds']
+const excluded = ['createdAt', 'updatedAt', 'deletedAt']
 
 export function getRandomInt(min: number, max: number) {
   min = Math.ceil(min)
@@ -44,6 +44,8 @@ export function getMockValue(
   switch (type) {
     case 'UUID':
       return uuid()
+    case type.match(/VARCHAR\(\w+\)\[\]/)?.input:
+      return ['test', 'test2']
     case 'TEXT':
     case type.match(/VARCHAR\(\w+\)/)?.input:
       return columnName + suffix
@@ -56,7 +58,7 @@ export function getMockValue(
     case 'BOOLEAN':
       return true
     case 'date':
-      return new Date().toISOString()
+      return new Date()
     case 'array':
       return [1, 2, 3]
     case 'JSONB':
@@ -64,7 +66,9 @@ export function getMockValue(
       return { test: 'test' }
     case 'VIRTUAL': {
       const column = model.getAttributes()[columnName]
-      if (!column.get) return undefined
+      if (!column.get) {
+        return undefined
+      }
       const getter = column.get.bind(mock as unknown as Model)
       const bound = getter()
       return bound
@@ -77,7 +81,6 @@ export function getMockValue(
 }
 
 export function getPopulatedModel(model: ModelStatic<Model>, cachedKeys: Record<string, unknown>) {
-  console.log(cachedKeys)
   const columns = Object.entries(model.getAttributes()).filter(
     ([name]) => !excluded.includes(name),
   ) as [[string, { type: string; allowNull: boolean }]]
@@ -115,7 +118,7 @@ describe('Entity CRUD', () => {
     expect(checks[0]).toBeTruthy()
   })
 
-  console.log = jest.fn()
+  // console.log = jest.fn()
 
   const sorted = Connection.entities.sort(sortEntities)
   const mocks = {} as Record<string, { [key: string]: unknown }>
@@ -129,7 +132,6 @@ describe('Entity CRUD', () => {
       throw new Error('Model init() not yet run' + entity.name)
     }
     const mock = getPopulatedModel(model, keys)
-    console.log('Generated Mock Data for: ', model.name)
     mocks[model.name] = mock
     const primaryKeyId = mock[model.primaryKeyAttribute] as string
     test(`mock ${model.name}`, async () => {

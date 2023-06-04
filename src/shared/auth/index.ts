@@ -4,38 +4,44 @@ import { expressjwt } from 'express-jwt'
 import jwksRsa from 'jwks-rsa'
 import jwt from 'jsonwebtoken'
 import { config } from '../config'
-import { AppAccessToken, EnrichedRequest } from '../types'
+import { EnrichedRequest } from '../types'
 import { Connection, EntityConfig } from '../db'
 import logger from '../logger'
 import { HttpUnauthorizedError } from '../errorHandler'
+import {
+  AppAccessToken,
+  AuthProviders,
+  SettingState,
+  oAuthError,
+  oAuthInputs,
+  oAuthRegistered,
+  oAuthResponse,
+} from '../types'
+import { auth0Login, auth0Register } from './auth0'
+import { firebaseCredentialLogin, firebaseRegister } from 'src/shared/auth/firebase'
+import { getSettingsAsync } from '../settings'
 
-export interface oAuthError {
-  error?: string
-  error_description?: string
-  status?: number
-}
-
-export interface oAuthResponse extends oAuthError {
-  access_token: string
-  id_token: string
-  scope: string
-  expires_in: number
-  token_type: string
-}
-
-export interface oAuthRegistered extends oAuthError {
-  _id: string
-  email: string
-  family_name: string
-  given_name: string
-  email_verified: boolean
+export const getAuthSettingsAsync = async () => {
+  const settings = await getSettingsAsync()
+  const authProvider = settings?.system?.authProvider || AuthProviders.None
+  const isDevelopment = authProvider === AuthProviders.Development
+  const isNone = authProvider === AuthProviders.None
+  const startAdminEmail = settings?.internal?.startAdminEmail
+  const enableRegistration = !isNone && settings?.system?.enableRegistration
+  return { settings, authProvider, isDevelopment, isNone, startAdminEmail, enableRegistration }
 }
 
 let jwkClient: jwksRsa.JwksClient
-export function getJwkClient() {
+export async function getJwkClient() {
+  const settings = await getSettingsAsync()
+  const authProvider = settings?.system?.authProvider || AuthProviders.None
+  if (authProvider !== AuthProviders.Auth0) {
+    return null
+  }
+
   if (!jwkClient) {
     jwkClient = jwksRsa({
-      jwksUri: `${config.auth?.baseUrl}/.well-known/jwks.json`,
+      jwksUri: `https://${settings?.auth0?.tenant}.auth0.com/.well-known/jwks.json`,
       cache: true,
       rateLimit: true,
     })
@@ -62,13 +68,39 @@ export type ModelWare = {
 const readMethods = ['GET', 'HEAD', 'OPTIONS']
 const writeMethods = ['POST', 'PUT', 'PATCH', 'DELETE']
 
+async function getVerifyKey(settings: SettingState, kid: string) {
+  const authProvider = settings?.system?.authProvider || AuthProviders.None
+  switch (authProvider) {
+    case AuthProviders.Firebase:
+      const json = JSON.parse(settings?.internal?.secrets?.google?.serviceAccountJson || '{}')
+      const key = json.private_key
+      return key
+    default:
+      const client = await getJwkClient()
+      if (!client) {
+        throw Error('No JWK client')
+      }
+      const result = await client.getSigningKey(kid)
+      return result.getPublicKey()
+  }
+}
+
 export async function checkToken(header: jwt.JwtHeader | undefined, token: string | undefined) {
+  const settings = await getSettingsAsync()
+  const authProvider = settings?.system?.authProvider || AuthProviders.None
+  const readyMap = {
+    [AuthProviders.None]: false,
+    [AuthProviders.Development]: false,
+    [AuthProviders.Auth0]:
+      !!settings?.auth0?.clientId && !!settings?.internal?.secrets?.auth0?.clientSecret,
+    [AuthProviders.Firebase]: !!settings?.internal?.secrets?.google?.serviceAccountJson,
+  }
   let accessToken: AppAccessToken | undefined
-  const hasAuthProvider =
-    config.auth.baseUrl && config.auth.clientId && config.auth.clientSecret && config.auth.enabled
-  if (hasAuthProvider && header?.alg === 'RS256' && header && token) {
-    const result = await getJwkClient().getSigningKey(header.kid)
-    const key = result.getPublicKey()
+  if (readyMap[authProvider] && header?.alg === 'RS256' && header && token) {
+    const key = await getVerifyKey(settings, header.kid as string)
+    if (!key) {
+      throw Error('Could not resolve private key for RS256')
+    }
     accessToken = jwt.verify(token, key, {
       algorithms: ['RS256'],
     }) as AppAccessToken
@@ -121,12 +153,13 @@ export async function modelAuthMiddleware(
     if (entity && !accessToken) {
       throw Error('Not logged in')
     }
-    // Valid, but let's heck if user has access role
+    // Valid, but let's check if user has access role
+    const roles = (accessToken?.claims?.roles as string[]) || accessToken?.roles || []
     if (
       entity &&
       accessToken &&
       entity.roles?.length &&
-      !entity.roles?.every(r => accessToken?.roles.includes(r))
+      !entity.roles?.every(r => roles.includes(r))
     ) {
       throw Error('Needs user access role for request')
     }
@@ -149,7 +182,7 @@ export function setRequest(
   const req = r as EnrichedRequest
   req.config = cfg
 
-  if (!req.headers.authorization?.includes('Bearer ')) {
+  if (!req.headers?.authorization?.includes('Bearer ')) {
     return {}
   }
   const token = req.headers.authorization.split(' ')[1]
@@ -174,13 +207,13 @@ export function createToken(obj: object): string {
   return token
 }
 
-export function decodeToken(token: string) {
+export function decodeToken(token: string): AppAccessToken {
   if (!token) {
-    return undefined
+    return undefined as unknown as AppAccessToken
   }
   const authInfo = jwt.decode(token) as jwt.JwtPayload
   if (!authInfo) {
-    return undefined
+    return undefined as unknown as AppAccessToken
   }
   const prefix = config.auth?.ruleNamespace || 'https://'
   const keys = Object.keys(authInfo).filter(key => key.includes(prefix))
@@ -188,51 +221,54 @@ export function decodeToken(token: string) {
     authInfo[key.replace(prefix, '')] = authInfo[key]
     delete authInfo[key]
   }
-  return authInfo
+  return authInfo as AppAccessToken
 }
 
-export async function authProviderLogin(
-  username: string,
-  password: string,
-): Promise<oAuthResponse> {
-  const response = await axios.post(
-    `${config.auth?.baseUrl}/oauth/token`,
-    {
-      client_id: config.auth?.clientId,
-      client_secret: config.auth?.clientSecret,
-      audience: `${config.auth?.baseUrl}/api/v2/`,
-      grant_type: 'password',
-      username,
-      password,
-    },
-    {
-      validateStatus: () => true,
-    },
+const loginMethods: Record<string, (args: oAuthInputs) => Promise<oAuthResponse>> = {
+  [AuthProviders.Auth0]: auth0Login,
+  [AuthProviders.Firebase]: firebaseCredentialLogin,
+}
+
+export async function authProviderLogin(args: oAuthInputs): Promise<oAuthResponse> {
+  const { authProvider } = await getAuthSettingsAsync()
+  const response = await loginMethods[authProvider](args)
+  return response
+}
+
+export async function fakeMockRegister(payload: oAuthInputs): Promise<oAuthRegistered> {
+  const result = await new Promise(
+    resolve =>
+      setTimeout(() => {
+        return resolve({
+          data: {
+            ...payload,
+            provider: 'mockRegister',
+          },
+        })
+      }, 1000) as unknown as oAuthRegistered,
   )
-  return response.data
+  return result as oAuthRegistered
 }
 
-export async function authProviderRegister(
-  payload: Record<string, string>,
-): Promise<Partial<oAuthRegistered>> {
+const registerMethods: Record<string, (details: oAuthInputs) => Promise<oAuthRegistered>> = {
+  [AuthProviders.Auth0]: auth0Register,
+  [AuthProviders.Firebase]: firebaseRegister,
+  [AuthProviders.Development]: fakeMockRegister,
+}
+
+export async function authProviderRegister(payload: oAuthInputs): Promise<oAuthRegistered> {
   try {
-    const response = await axios.post(`${config.auth?.baseUrl}/dbconnections/signup`, {
-      connection: 'Username-Password-Authentication',
-      client_id: config.auth?.clientId,
-      email: payload.email,
-      password: payload.password,
-      user_metadata: {
-        id: payload.userId,
-      },
-    })
-    return response.data
+    const { authProvider } = await getAuthSettingsAsync()
+    const method = registerMethods[authProvider]
+    const response = await method(payload)
+    return response
   } catch (err: unknown) {
     const error = err as Error & {
       response: AxiosResponse
     }
     return {
-      error: error.response?.data?.name,
-      error_description: error.response?.data?.description,
+      error: error.response?.data?.name ?? error.message,
+      error_description: error.response?.data?.description ?? error.message,
     }
   }
 }
@@ -265,6 +301,7 @@ export async function authProviderPatch(
   },
 ): Promise<oAuthError | string> {
   try {
+    const token = config.auth?.manageToken
     const response = await axios.patch(
       `${config.auth?.baseUrl}/api/v2/users/${sub}`,
       {
@@ -272,7 +309,7 @@ export async function authProviderPatch(
       },
       {
         headers: {
-          Authorization: `Bearer ${config.auth?.manageToken}`,
+          Authorization: `Bearer ${token}`,
         },
       },
     )

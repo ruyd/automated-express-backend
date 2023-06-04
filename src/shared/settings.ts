@@ -1,14 +1,21 @@
-import { ClientConfig, Setting, SettingDataType } from './types'
+import {
+  AuthProviders,
+  ClientConfig,
+  Setting,
+  SettingDataType,
+  SettingState,
+} from '../shared/types'
 import config from './config'
 import Connection from './db'
 import logger from './logger'
 import { SettingModel } from './types'
+import { omit } from 'lodash'
+import NodeCache from 'node-cache'
 
-/**
- * for .env to not break and avoid refactor to use config.settings
- * @param data
- */
-function setConfigAuth(data: unknown) {
+export const SettingsCache = new NodeCache({ stdTTL: 100, useClones: false })
+const SETTINGS_CACHE_KEY = 'settings'
+
+export function getAuth0Settings(data: unknown) {
   const value = data as { [key: string]: string | boolean }
   const merged = {
     ...config.auth,
@@ -22,40 +29,52 @@ function setConfigAuth(data: unknown) {
   config.auth = merged
 }
 
-const setters: { [key: string]: (d: unknown) => void } = {
-  auth0: setConfigAuth,
+function setGoogle(result: SettingState) {
+  const json = JSON.parse(result.internal?.secrets?.google?.serviceAccountJson || '{}')
+  const projectId = json?.project_id
+  if (result.google && !result.google.projectId) {
+    result.google.projectId = projectId
+  }
+}
+function setAuth(result: SettingState) {
+  if (!result.system?.authProvider) {
+    if (!result.system) {
+      result.system = {} as SettingDataType
+    }
+    result.system.authProvider = AuthProviders.None
+  }
 }
 
-export async function loadSettingsAsync() {
-  if (process.env.NODE_ENV === 'test') {
-    logger.info(`Skipping settings load in test mode...`)
-    return true
+export async function getSettingsAsync(freshNotCached = false): Promise<SettingState> {
+  const cache = SettingsCache.get(SETTINGS_CACHE_KEY)
+  if (cache && !freshNotCached) {
+    logger.info(`Skipping settings load, cache hit...`)
+    return cache as SettingState
   }
+
   if (!Connection.initialized) {
-    logger.info(`Skipping settings load, no connection...`)
-    return false
+    throw new Error(`Skipping settings load, no connection...`)
   }
   logger.info(`Loading settings...`)
-
-  const settings = (await SettingModel.findAll({ raw: true })) as unknown as Setting[]
-  if (settings.length === 0) {
-    config.settings = {}
-  }
-  for (const setting of settings) {
-    logger.info(`Setting: ${setting.name}`)
-    config.settings[setting.name] = setting.data as SettingDataType
-    const setter = setters[setting.name]
-    if (setter) {
-      setter(setting.data)
+  const result = {} as SettingState
+  try {
+    const settings = (await SettingModel.findAll({ raw: true })) as unknown as Setting[]
+    for (const setting of settings) {
+      result[setting.name] = (setting as unknown as { data: SettingDataType }).data
     }
+  } catch (e) {
+    logger.error(e)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const debug = config.settings
-  return true
+  setGoogle(result)
+  setAuth(result)
+
+  SettingsCache.set(SETTINGS_CACHE_KEY, result)
+
+  return result
 }
-export async function getClientConfigSettings(isAdmin = false): Promise<ClientConfig> {
-  await loadSettingsAsync() // stateless, add config for statefull, to skip stuff like this on VMs
+export async function getClientSettings(isAdmin = false, force?: boolean): Promise<ClientConfig> {
+  const allSettings = await getSettingsAsync(force)
   const admin =
     !config.production || isAdmin
       ? {
@@ -63,18 +82,11 @@ export async function getClientConfigSettings(isAdmin = false): Promise<ClientCo
         }
       : undefined
 
-  const settings = config.settings?.system
-    ? {
-        system: config.settings?.system,
-        auth0: config.settings?.auth0,
-        google: config.settings?.google,
-      }
-    : undefined
-
+  const settings = omit(allSettings, 'internal')
   const payload = {
     settings,
     admin,
-    ready: !!config.settings?.system,
+    ready: !!settings.system,
   }
   return payload as ClientConfig
 }

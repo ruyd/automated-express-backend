@@ -7,14 +7,13 @@ import logger from '../logger'
 import sequelize from 'sequelize'
 import Connection from '../db'
 
-export async function list<T extends {}>(
+export async function list<T extends object>(
   model: ModelStatic<Model<T>>,
-  options: FindOptions = { limit: 100, offset: 0 },
+  options: FindOptions = { limit: 100, offset: 0, include: [] },
 ): Promise<PagedResult<T>> {
   const { count: total, rows } = await model.findAndCountAll({
-    raw: true,
     nest: true,
-    // include: Object.keys(model.associations),
+    include: options.include || [],
     ...options,
   })
 
@@ -27,7 +26,7 @@ export async function list<T extends {}>(
   }
 }
 
-export async function getIfExists<T extends {}>(
+export async function getIfExists<T extends object>(
   model: ModelStatic<Model<T>>,
   id: string,
 ): Promise<Model<T>> {
@@ -40,7 +39,7 @@ export async function getIfExists<T extends {}>(
 
 export async function createOrUpdate<T extends object>(
   model: ModelStatic<Model<T>>,
-  payload: T,
+  payload: object,
 ): Promise<T> {
   const casted = payload as unknown as MakeNullishOptional<T>
   try {
@@ -49,7 +48,7 @@ export async function createOrUpdate<T extends object>(
     if (entity?.onChanges) {
       entity.onChanges(`${entity.name}`, item)
     }
-    return item.get()
+    return item.get() as unknown as T
   } catch (e: unknown) {
     const err = e as Error
     logger.error(`${model.name}.createOrUpdate(): ${err.message}`, err)
@@ -57,7 +56,7 @@ export async function createOrUpdate<T extends object>(
   }
 }
 
-export async function deleteIfExists<T extends {}>(
+export async function deleteIfExists<T extends object>(
   model: ModelStatic<Model<T>>,
   id: string,
 ): Promise<boolean> {
@@ -69,7 +68,6 @@ export async function deleteIfExists<T extends {}>(
     const err = e as Error
     logger.error(`${model.name}.deleteIfExists(): ${err.message}`, err)
     throw new Error(err.message)
-    return false
   }
 }
 

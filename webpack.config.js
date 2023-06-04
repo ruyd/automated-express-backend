@@ -7,26 +7,13 @@ const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin')
 const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin')
 const GeneratePackageJsonPlugin = require('generate-package-json-webpack-plugin')
 const SwaggerJSDocWebpackPlugin = require('swagger-jsdoc-webpack-plugin')
-const appConfig = require('./config/app.json')
 const createEnvironmentHash = require('./tools/createEnvironmentHash')
 const getClientEnvironment = require('./tools/env')
 const paths = require('./tools/paths')
 const packageJson = require('./package.json')
-const webpack = require('webpack')
 const env = getClientEnvironment(paths.publicUrlOrPath.slice(0, -1))
 const mode = env.mode
 const isDevelopment = env.isDevelopment
-
-function getDefinedEnv() {
-  const concerns = appConfig.envConcerns.reduce((acc, key) => {
-    if (process.env[key]) {
-      acc[`process.env.${key}`] = JSON.stringify(process.env[key])
-    }
-    return acc
-  }, {})
-  console.log('baked env vars:', concerns)
-  return concerns
-}
 
 module.exports = {
   mode,
@@ -50,7 +37,6 @@ module.exports = {
     }),
   ],
   plugins: [
-    new webpack.DefinePlugin(getDefinedEnv()),
     new ForkTsCheckerWebpackPlugin(),
     new NodePolyfillPlugin(),
     new GeneratePackageJsonPlugin({ ...packageJson, main: 'index.js' }),
@@ -77,7 +63,6 @@ module.exports = {
       },
       {
         test: /\.json/,
-        include: [path.resolve(__dirname, 'config')],
       },
     ],
   },

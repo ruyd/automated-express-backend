@@ -12,11 +12,8 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "noEmit": true,
-    "outDir": "build",
-    "paths": {
-      "@lib": ["../lib/src"]
-    }
+    "outDir": "build"
   },
-  "include": ["src", ".eslintrc.js", "package.json", "config/*.json"],
+  "include": ["src", ".eslintrc.js", "package.json", "src/shared/config/*.json"],
   "exclude": ["dist", "node_modules"]
 }

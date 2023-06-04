@@ -1,6 +1,8 @@
+import { addModel } from '../../db'
 import { Cart } from '..'
 import { DataTypes } from 'sequelize'
-import { addModel } from '../../../shared/db'
+import { DrawingModel } from './drawing'
+import { ProductModel } from './product'
 
 export const CartAttributes = {
   cartId: {
@@ -11,6 +13,15 @@ export const CartAttributes = {
   userId: {
     type: DataTypes.UUID,
   },
+  cartType: {
+    type: DataTypes.STRING,
+  },
+  productId: {
+    type: DataTypes.STRING,
+  },
+  priceId: {
+    type: DataTypes.STRING,
+  },
   drawingId: {
     type: DataTypes.UUID,
   },
@@ -19,6 +30,23 @@ export const CartAttributes = {
   },
 }
 
-export const CartModel = addModel<Cart>('cart', CartAttributes)
+export const CartModel = addModel<Cart>({
+  name: 'cart',
+  attributes: CartAttributes,
+  joins: [
+    {
+      type: 'belongsTo',
+      target: DrawingModel,
+      foreignKey: 'drawingId',
+      as: 'drawing',
+    },
+    {
+      type: 'belongsTo',
+      target: ProductModel,
+      foreignKey: 'productId',
+      as: 'product',
+    },
+  ],
+})
 
 export default CartModel

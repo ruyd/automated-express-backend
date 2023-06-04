@@ -9,7 +9,7 @@ module.exports = {
   testEnvironment: 'node',
   modulePathIgnorePatterns: ['<rootDir>/build/', '<rootDir>/dist/'],
   roots: ['<rootDir>'],
-  testMatch: ['<rootDir>/tests/**/*tests.ts'],
+  testMatch: ['<rootDir>/tests/**/*.test.ts'],
   modulePaths: [rootPath],
   moduleNameMapper: pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
 }

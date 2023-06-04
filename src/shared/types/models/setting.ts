@@ -1,11 +1,11 @@
 import { Setting } from '..'
 import { DataTypes } from 'sequelize'
-import { sendConfig } from 'src/shared/socket'
-import { addModel } from '../../../shared/db'
+import { sendConfig } from '../../../shared/socket'
+import { addModel } from '../../db'
 
-export const SettingModel = addModel<Setting>(
-  'setting',
-  {
+export const SettingModel = addModel<Setting>({
+  name: 'setting',
+  attributes: {
     name: {
       primaryKey: true,
       type: DataTypes.STRING,
@@ -14,11 +14,11 @@ export const SettingModel = addModel<Setting>(
       type: DataTypes.JSONB,
     },
   },
-  [],
-  [],
-  false,
-  false,
-  sendConfig,
-)
+  joins: [],
+  roles: ['admin'],
+  publicRead: false,
+  publicWrite: false,
+  onChanges: sendConfig,
+})
 
 export default SettingModel
