@@ -5,7 +5,7 @@ export async function getSecrets() {
   logger.info(`Getting secrets from Secret Manager...`)
   const result = {} as { [key: string]: string }
   const client = new v1.SecretManagerServiceClient({
-    projectId: 'mstream-368503',
+    projectId: process.env.GCP_PROJECT_ID,
   })
   const asyncList = client.listSecretsAsync()
   try {
@@ -15,11 +15,15 @@ export async function getSecrets() {
         logger.error(`Secret name is missing`)
         continue
       }
-      const [details] = await client.accessSecretVersion({ name })
-      logger.info(`Secret: ${name} = ${JSON.stringify(details)}`)
-      if (!details.payload?.data) {
-        result[name] = details.payload?.data as string
+      const [details] = await client.accessSecretVersion({ name: `${name}/versions/latest` })
+      const data = details.payload?.data
+      if (!data) {
+        logger.warn(`Secret ${name} has no payload`)
+        continue
       }
+      // Never log secret values, only names
+      logger.info(`Loaded secret: ${name}`)
+      result[name] = data.toString()
     }
   } catch (error) {
     logger.error(`Error getting secrets: ${error}`)
